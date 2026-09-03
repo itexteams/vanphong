@@ -1,0 +1,1241 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sổ Ghi Chép Tổ Văn Phòng</title>
+
+    <!-- KẾT NỐI THƯ VIỆN FIREBASE QUA CDN -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+    <!-- KẾT NỐI THƯ VIỆN CHART.JS -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #f4f6f9; margin: 0; padding: 0; }
+        header { background-color: #0056b3; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .container { max-width: 1000px; margin: 20px auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        
+        .tab-menu { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #ddd; padding-bottom: 10px; overflow-x: auto; }
+        .tab-btn { background-color: #e9ecef; color: #333; font-weight: bold; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; transition: 0.3s; white-space: nowrap; }
+        .tab-btn:hover { background-color: #d6d8db; }
+        .tab-btn.active-tab { background-color: #0056b3; color: white; }
+
+        button { background-color: #0056b3; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px; }
+        button:hover { background-color: #004494; }
+        .btn-danger { background-color: #dc3545; }
+        .btn-danger:hover { background-color: #c82333; }
+        .btn-success { background-color: #28a745; }
+        .btn-warning { background-color: #ffc107; color: #000; }
+        .btn-warning:hover { background-color: #e0a800; }
+        .btn-info { background-color: #17a2b8; color: white; }
+        .btn-disabled { background-color: #6c757d !important; cursor: not-allowed !important; }
+        
+        input, textarea, select { width: 100%; padding: 10px; margin: 8px 0 15px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-family: inherit; }
+        
+        table.data-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 14px; }
+        table.data-table th, table.data-table td { border: 1px solid #ddd; padding: 10px; text-align: left; vertical-align: top; }
+        table.data-table th { background-color: #0056b3; color: white; text-align: center; vertical-align: middle; }
+        table.data-table tr:nth-child(even) { background-color: #f9f9f9; }
+
+        .meeting-item { border-left: 4px solid #0056b3; padding: 10px 15px; background: #f9f9f9; margin-bottom: 10px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
+        
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; color: white; }
+        .bg-secondary { background-color: #6c757d; }
+        .bg-success { background-color: #28a745; }
+        .bg-primary { background-color: #007bff; }
+        .bg-danger { background-color: #dc3545; }
+        .bg-warning { background-color: #ffc107; color: #000; }
+
+        .screen { display: none; }
+        .active { display: block; }
+        .admin-only { display: none; }
+
+        #print-area { font-family: 'Times New Roman', Times, serif; font-size: 14pt; line-height: 1.5; color: #000; }
+        #print-area h2 { font-size: 14pt; font-weight: bold; text-align: center; text-transform: uppercase; margin-top: 30px; margin-bottom: 15px; }
+        #print-area h3 { font-size: 14pt; font-weight: bold; text-align: center; margin-top: 0; }
+        #print-area h4 { font-size: 14pt; font-weight: bold; margin-left: 0; margin-top: 20px; margin-bottom: 5px; }
+        
+        .format-text p { text-align: justify; text-indent: 1.27cm; margin-top: 5px; margin-bottom: 5px; }
+        .no-indent-text p { text-indent: 0; margin-top: 5px; margin-bottom: 5px; text-align: justify; }
+        
+        .comment-box { margin-bottom: 10px; }
+        .comment-meta { font-weight: bold; margin-bottom: 5px; margin-left: 1.27cm; }
+        .comment-box .format-text p { margin-top: 5px; margin-left: 0; }
+
+        @page {
+            size: A4;
+            margin: 20mm;
+        }
+        @media print {
+            body { background: white; }
+            header, .no-print { display: none !important; }
+            .container { box-shadow: none; margin: 0; padding: 0; width: 100%; max-width: 100%; }
+            .print-header { display: block !important; margin-bottom: 20px; }
+            .print-header table { width: 100%; border: none; border-collapse: collapse; }
+            .print-header td { border: none; padding: 0; vertical-align: top; }
+            .document-body { margin-left: 10mm; } 
+        }
+        
+        .point-input { width: 60px; padding: 5px; margin: 0; text-align: center; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <header class="no-print">
+        <div>
+            <h2 style="margin:0; color:white; font-family: 'Segoe UI'; font-size: 18px;">Sổ ghi chép nội dung các hoạt động của tổ Văn phòng trường THPT ATK Tân Trào</h2>
+        </div>
+        <div id="user-info"></div>
+    </header>
+
+    <!-- MÀN HÌNH ĐĂNG NHẬP -->
+    <div id="login-screen" class="container screen active no-print">
+        <h2 style="text-align: center;">Đăng nhập hệ thống</h2>
+        <div style="max-width: 350px; margin: 0 auto; background: #f9f9f9; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
+            <label>Tài khoản:</label>
+            <input type="text" id="login-username" placeholder="Nhập tên đăng nhập...">
+            <label>Mật khẩu:</label>
+            <input type="password" id="login-password" placeholder="Nhập mật khẩu...">
+            <button onclick="login()" style="width: 100%; padding: 10px; font-size: 16px;">Đăng nhập</button>
+        </div>
+    </div>
+
+    <!-- MAIN APP CONTAINER -->
+    <div id="main-app" class="screen container no-print">
+        <div class="tab-menu">
+            <button id="tab-plan" class="tab-btn active-tab" onclick="switchTab('plan')">Kế hoạch chi tiết</button>
+            <button id="tab-meeting" class="tab-btn" onclick="switchTab('meeting')">Sinh hoạt tổ</button>
+            <button id="tab-member" class="tab-btn" onclick="switchTab('member')">Danh sách thành viên</button>
+            <button id="tab-task" class="tab-btn" onclick="switchTab('task')">Nhiệm vụ và Đánh giá</button>
+            <button id="tab-stats" class="tab-btn" onclick="switchTab('stats')">Thống kê & Biểu đồ</button>
+        </div>
+
+        <!-- TAB 0: KẾ HOẠCH CHI TIẾT -->
+        <div id="tab-plan-content">
+            <div style="text-align: center; margin-bottom: 10px;">
+                <h3 style="margin: 0; font-size: 20px;">KẾ HOẠCH CHI TIẾT NĂM HỌC</h3>
+            </div>
+            <hr>
+            <div style="overflow-x: auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 5%; text-align: center;">STT</th>
+                            <th style="width: 20%; text-align: center;">Thời gian</th>
+                            <th style="width: 40%; text-align: center;">Nội dung</th>
+                            <th style="width: 20%; text-align: center;">Ghi chú</th>
+                            <th class="admin-only-cell" style="width: 15%; text-align: center;">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="plan-list"></tbody>
+                </table>
+            </div>
+
+            <div id="admin-plan-form" class="admin-only" style="margin-top: 20px; background: #e9ecef; padding: 15px; border-radius: 5px;">
+                <h4 id="form-plan-title" style="margin-top: 0; color: #0056b3;">+ Thêm Kế hoạch mới</h4>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 150px;">
+                        <input type="text" id="pl-time" placeholder="Thời gian (VD: Tuần 1...)">
+                    </div>
+                    <div style="flex: 2; min-width: 250px;">
+                        <input type="text" id="pl-content" placeholder="Nội dung công việc, sinh hoạt">
+                    </div>
+                    <div style="flex: 1; min-width: 150px;">
+                        <input type="text" id="pl-note" placeholder="Ghi chú">
+                    </div>
+                </div>
+                <div style="margin-top: 10px;">
+                    <button id="btn-save-plan" class="btn-success" onclick="savePlan()">Lưu kế hoạch</button>
+                    <button id="btn-cancel-edit-plan" class="btn-danger" onclick="cancelEditPlan()" style="display: none;">Hủy sửa</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 1: DANH SÁCH CUỘC HỌP -->
+        <div id="tab-meeting-content" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin: 0;">Các biên bản họp tổ</h3>
+                <button id="btn-create-meeting" class="admin-only" onclick="showScreen('create-meeting-screen')">+ Tạo cuộc họp mới</button>
+            </div>
+            <hr>
+            <div id="meeting-list"></div>
+        </div>
+
+        <!-- TAB 2: QUẢN LÝ THÀNH VIÊN -->
+        <div id="tab-member-content" style="display: none;">
+            <h3 style="margin: 0; text-align: center; margin-bottom: 15px;">Danh sách và Phân công nhiệm vụ</h3>
+            <div style="overflow-x: auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Họ và Tên</th>
+                            <th>Chức vụ</th>
+                            <th>Vị trí công tác</th>
+                            <th>Nhiệm vụ phân công</th>
+                            <th class="admin-only-cell">Tài khoản</th>
+                            <th class="admin-only-cell">Mật khẩu</th>
+                            <th class="admin-only-cell" style="width: 80px;">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="member-list"></tbody>
+                </table>
+            </div>
+
+            <div id="admin-member-form" class="admin-only" style="margin-top: 20px; background: #e9ecef; padding: 15px; border-radius: 5px;">
+                <h4 id="form-member-title">+ Thêm/Cấp tài khoản thành viên mới</h4>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 200px;"><input type="text" id="mb-name" placeholder="Họ và tên"></div>
+                    <div style="flex: 1; min-width: 200px;"><input type="text" id="mb-role" placeholder="Chức vụ (VD: Tổ trưởng, Tổ phó, Nhân viên)"></div>
+                </div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 200px;"><input type="text" id="mb-subject" placeholder="Vị trí công tác (VD: Kế toán, Văn thư, Y tế, Thủ quỹ...)"></div>
+                    <div style="flex: 1; min-width: 200px;"><input type="text" id="mb-task" placeholder="Nhiệm vụ phân công (VD: Thư ký, Quản lý hồ sơ...)"></div>
+                </div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; border-top: 1px dashed #ccc; padding-top: 10px; margin-top: 5px;">
+                    <div style="flex: 1; min-width: 200px;"><input type="text" id="mb-username" placeholder="Tên đăng nhập" style="border-color: #0056b3;"></div>
+                    <div style="flex: 1; min-width: 200px;"><input type="text" id="mb-password" placeholder="Mật khẩu" style="border-color: #0056b3;"></div>
+                </div>
+                <div style="margin-top: 10px;">
+                    <button id="btn-save-member" class="btn-success" onclick="saveMember()">Lưu thành viên</button>
+                    <button id="btn-cancel-edit" class="btn-danger" onclick="cancelEdit()" style="display: none;">Hủy sửa</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: ĐÁNH GIÁ & NHIỆM VỤ -->
+        <div id="tab-task-content" style="display: none;">
+            <div id="task-overview">
+                <h3 style="margin: 0; text-align: center; margin-bottom: 15px;">Theo dõi và Đánh giá nhiệm vụ nhân viên</h3>
+                <div style="overflow-x: auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Họ và Tên nhân viên</th>
+                                <th>Số nhiệm vụ</th>
+                                <th>Xếp loại chung cả năm</th>
+                                <th style="width: 100px;">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="task-overview-list"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="task-detail" style="display: none; background: #fff; border: 1px solid #ddd; padding: 20px; border-radius: 8px;">
+                <button onclick="closeTaskDetail()" class="btn-danger" style="margin-bottom: 15px;">&larr; Quay lại danh sách</button>
+                <h3 style="margin-top: 0; color: #0056b3;">Hồ sơ nhiệm vụ: <span id="td-teacher-name"></span></h3>
+                
+                <div style="background: #e9ecef; padding: 15px; border-radius: 5px; margin-bottom: 20px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center;">
+                    <div id="td-statistics" style="flex: 1; min-width: 250px; font-size: 14px;"></div>
+                    <div class="admin-only" style="display: flex; align-items: center; gap: 10px; background: white; padding: 10px; border-radius: 5px; border: 1px solid #ccc;">
+                        <b>Chốt xếp loại năm:</b>
+                        <select id="td-yearly-eval" style="margin: 0; padding: 5px; width: auto;">
+                            <option value="Chưa đánh giá">Chưa đánh giá</option>
+                            <option value="Chưa hoàn thành">Chưa hoàn thành</option>
+                            <option value="Hoàn thành">Hoàn thành</option>
+                            <option value="Hoàn thành tốt">Hoàn thành tốt</option>
+                            <option value="Hoàn thành xuất sắc">Hoàn thành xuất sắc</option>
+                        </select>
+                        <button class="btn-success" onclick="saveYearlyEval()">Lưu</button>
+                    </div>
+                    <div id="td-yearly-view-only" style="display:none; font-weight: bold; color: #dc3545; font-size: 16px;"></div>
+                </div>
+
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 25%;">Nội dung nhiệm vụ</th>
+                            <th style="width: 30%;">Kết quả thực hiện (Nhân viên nhập)</th>
+                            <th style="width: 15%;">Tổ trưởng đánh giá</th>
+                            <th style="width: 20%;">Ghi chú (Tổ trưởng)</th>
+                            <th style="width: 10%;">Lưu</th>
+                        </tr>
+                    </thead>
+                    <tbody id="td-task-list"></tbody>
+                </table>
+
+                <div class="admin-only" style="margin-top: 20px; border-top: 2px dashed #ccc; padding-top: 15px;">
+                    <h4 style="font-family:'Segoe UI'; margin-top:0;">+ Giao nhiệm vụ mới</h4>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="new-task-name" placeholder="Nhập tên nhiệm vụ...">
+                        <button class="btn-primary" onclick="assignTask()" style="white-space: nowrap;">Giao việc</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: THỐNG KÊ & BIỂU ĐỒ -->
+        <div id="tab-stats-content" style="display: none;">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h3 style="margin: 0; font-size: 20px; text-transform: uppercase;">TỔNG HỢP & QUY ĐỔI ĐIỂM THI ĐUA</h3>
+            </div>
+            
+            <div style="background: #e9ecef; padding: 15px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px;">
+                <h4 style="margin-top: 0; margin-bottom: 10px; color: #0056b3;">Bảng Quy đổi điểm số</h4>
+                <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <span class="badge" style="background-color: #ffc107; color: black;">Xuất sắc:</span> 
+                        <input type="number" id="pt-xs" class="point-input" disabled>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <span class="badge bg-success">Tốt:</span> 
+                        <input type="number" id="pt-tot" class="point-input" disabled>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <span class="badge bg-primary">Hoàn thành:</span> 
+                        <input type="number" id="pt-ht" class="point-input" disabled>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <span class="badge bg-danger">Chưa HT:</span> 
+                        <input type="number" id="pt-cht" class="point-input" disabled>
+                    </div>
+                    <div class="admin-only" style="margin-left: auto;">
+                        <button class="btn-warning" id="btn-edit-points" onclick="enableEditPoints()">Sửa điểm</button>
+                        <button class="btn-success" id="btn-save-points" onclick="savePoints()" style="display: none;">Lưu điểm</button>
+                    </div>
+                </div>
+            </div>
+
+            <div style="overflow-x: auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th style="text-align: center;">Họ và Tên nhân viên</th>
+                            <th style="text-align: center; background-color: #ffc107; color: black;">Xuất sắc</th>
+                            <th style="text-align: center; background-color: #28a745;">Tốt</th>
+                            <th style="text-align: center; background-color: #007bff;">Hoàn thành</th>
+                            <th style="text-align: center; background-color: #dc3545;">Chưa HT</th>
+                            <th style="text-align: center; background-color: #6c757d;">Tổng số NV</th>
+                            <th style="text-align: center; background-color: #6610f2; color: white;">ĐIỂM TRUNG BÌNH</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stats-table-list"></tbody>
+                </table>
+            </div>
+
+            <div style="margin-top: 40px; background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
+                <h4 style="text-align: center; margin-top: 0; color: #0056b3;">BIỂU ĐỒ ĐIỂM TRUNG BÌNH CỦA NHÂN VIÊN</h4>
+                <div style="position: relative; height:400px; width:100%">
+                    <canvas id="evaluationChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MÀN HÌNH TẠO CUỘC HỌP -->
+    <div id="create-meeting-screen" class="container screen no-print">
+        <h2>Tạo buổi sinh hoạt / họp tổ mới</h2>
+        <label>Tiêu đề cuộc họp (Ví dụ: Biên bản họp tổ đầu tháng):</label>
+        <input type="text" id="m-title" placeholder="Nhập tiêu đề...">
+        <label>Thời gian bắt đầu:</label>
+        <input type="datetime-local" id="m-time">
+        <label>Hạn chót nhận xét (Bỏ trống nếu không giới hạn):</label>
+        <input type="datetime-local" id="m-deadline">
+        <label>Nội dung triển khai:</label>
+        <textarea id="m-content" rows="6" placeholder="Nhập nội dung... (Có thể ấn Enter xuống dòng, hệ thống tự động căn lề chuẩn 1.27cm)"></textarea>
+        <button class="btn-success" onclick="saveMeeting()">Đăng thông báo</button>
+        <button class="btn-danger" onclick="showScreen('main-app')">Hủy</button>
+    </div>
+
+    <!-- MÀN HÌNH CHI TIẾT & XUẤT BIÊN BẢN -->
+    <div id="detail-screen" class="container screen">
+        <button class="no-print" onclick="showScreen('main-app')" style="margin-bottom: 15px;">&larr; Quay lại</button>
+        <button class="no-print btn-success" onclick="window.print()" style="margin-bottom: 15px; float: right;">Xuất Biên Bản (In/PDF)</button>
+        
+        <div class="no-print admin-only" style="float: right; margin-right: 10px;">
+            <button class="btn-warning" id="btn-edit-print" onclick="toggleEditPrint()" style="margin-bottom: 15px; margin-right: 5px;">📝 Sửa Bản In</button>
+            <button class="btn-danger" id="btn-restore-print" onclick="restoreOriginalPrint()" style="display:none; margin-bottom: 15px;">🔄 Khôi phục gốc</button>
+        </div>
+        <div style="clear: both;"></div>
+
+        <div id="print-area">
+            <div class="print-header screen" id="print-header-info" style="display: none;">
+                <table style="width: 100%; padding-left: 2mm;">
+                    <tr>
+                        <td style="width: 42%; text-align: center; vertical-align: top;">
+                            <div style="font-size: 12pt; white-space: nowrap;">TRƯỜNG THPT ATK TÂN TRÀO</div>
+                            <div style="font-size: 13pt; font-weight: bold; text-decoration: underline;">TỔ VĂN PHÒNG</div>
+                        </td>
+                        <td style="width: 58%; text-align: center; vertical-align: top;">
+                            <div style="font-size: 13pt; font-weight: bold; white-space: nowrap;">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
+                            <div style="font-size: 14pt; font-weight: bold; text-decoration: underline;">Độc lập – Tự do – Hạnh phúc</div>
+                            <div style="text-align: right; margin-top: 5px; font-style: italic; font-size: 14pt; padding-right: 15px;">
+                                Minh Thanh, <span id="d-date-location">ngày ... tháng ... năm ....</span>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="document-body">
+                <h2>BIÊN BẢN HỌP TỔ VĂN PHÒNG</h2>
+                <h3 id="d-title"></h3>
+                
+                <div class="format-text">
+                    <p style="text-indent: 0;"><b>Thời gian: </b> <span id="d-time"></span></p>
+                    <p style="text-indent: 0;"><b>Chủ tọa: </b> <span id="d-host"></span></p>
+                </div>
+                
+                <h4>I. NỘI DUNG TRIỂN KHAI</h4>
+                <div id="d-content" class="format-text"></div>
+                
+                <h4>II. Ý KIẾN THẢO LUẬN CỦA THÀNH VIÊN</h4>
+                <div id="d-comments"></div>
+                
+                <h4>III. KẾT LUẬN</h4>
+                <div id="d-conclusion" class="format-text"></div>
+                <div class="format-text">
+                    <p><b>* Nội dung được 100% các thành viên nhất trí.</b></p>
+                </div>
+                
+                <div class="print-header screen" style="width: 100%; margin-top: 40px; display: none; overflow: hidden;" id="print-footer-info">
+                    <div style="float: left; width: 50%; text-align: center;">
+                        <p style="font-weight: bold; margin: 0;">THƯ KÝ</p>
+                        <p style="height: 80px;"></p>
+                        <p style="font-weight: bold; margin: 0;" id="d-secretary-name"></p>
+                    </div>
+                    <div style="float: right; width: 50%; text-align: center;">
+                        <p style="font-weight: bold; margin: 0;">CHỦ TỌA</p>
+                        <p style="height: 80px;"></p>
+                        <p style="font-weight: bold; margin: 0;" id="d-host-name"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="no-print" style="margin-top: 30px; border-top: 2px solid #ccc; padding-top: 15px;">
+            <h4 style="font-family: 'Segoe UI', sans-serif;">Đóng góp ý kiến của bạn:</h4>
+            <textarea id="c-text" rows="3" placeholder="Nhập ý kiến (ấn Enter để phân đoạn)..." style="font-family: 'Segoe UI', sans-serif;"></textarea>
+            <button onclick="addComment()">Gửi ý kiến</button>
+            
+            <div class="admin-only" style="margin-top: 20px; background: #e9ecef; padding: 15px; border-radius: 5px;">
+                <h4 style="margin-top: 0; font-family: 'Segoe UI', sans-serif; color: #0056b3;">Tổng hợp & Chốt Kết luận (Chỉ Chủ tọa thấy):</h4>
+                <textarea id="c-conclusion-text" rows="4" placeholder="Nhập nội dung kết luận..." style="font-family: inherit;"></textarea>
+                <button class="btn-warning" onclick="saveConclusion()" style="margin-bottom: 15px;">Lưu Kết luận</button>
+                
+                <hr style="border-top: 1px dashed #ccc;">
+                <h4 style="margin-top: 15px; font-family: 'Segoe UI', sans-serif; color: #0056b3;">Gia hạn / Mở khóa Biên bản:</h4>
+                <label style="font-size: 14px;">Hạn chót mới (Xóa trắng để mở khóa vô thời hạn):</label>
+                <div style="display: flex; gap: 10px; margin-top: 5px;">
+                    <input type="datetime-local" id="c-deadline-input" style="margin: 0;">
+                    <button class="btn-primary" onclick="updateDeadline()" style="white-space: nowrap;">Cập nhật hạn</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let printAreaTemplate = '';
+        document.addEventListener("DOMContentLoaded", () => {
+            printAreaTemplate = document.getElementById('print-area').innerHTML;
+        });
+
+        // 1. CẤU HÌNH FIREBASE
+        const firebaseConfig = {
+            apiKey: "AIzaSyCv8qI2-4CIm9-YJNBlIawKXpF0VAfjBtc",
+            authDomain: "toantin-d32b2.firebaseapp.com",
+            databaseURL: "https://toantin-d32b2-default-rtdb.firebaseio.com",
+            projectId: "toantin-d32b2",
+            storageBucket: "toantin-d32b2.firebasestorage.app",
+            messagingSenderId: "416212565318",
+            appId: "1:416212565318:web:9480d4d2951c71a0b8f947",
+            measurementId: "G-TZB62HZQ7X"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // 2. DỮ LIỆU TOÀN CỤC
+        let currentUser = { id: '', name: '', role: '', username: '' };
+        let currentMeetingId = null;
+        let editingMemberIndex = -1; 
+        let viewingTaskTeacherIndex = -1; 
+        let editingPlanIndex = -1; 
+        
+        let plans = [];
+        let meetings = [];
+        let membersData = [];
+        
+        let evalPoints = { xs: 10, tot: 8, ht: 5, cht: 0 }; 
+        let myChart = null; 
+
+        const defaultMembers = [
+            { name: "Super Admin", role: "Quản trị viên", subject: "Quản trị hệ thống", task: "Quản trị viên", username: "admin", password: "admin", tasks: [], yearlyEval: "Chưa đánh giá" },
+            { name: "Tổ trưởng Văn phòng", role: "Tổ trưởng", subject: "Kế toán", task: "Chủ tọa", username: "totruong_vanphong", password: "123", tasks: [], yearlyEval: "Chưa đánh giá" },
+            { name: "Tổ phó Văn phòng", role: "Tổ phó", subject: "Văn thư", task: "Thư ký cuộc họp", username: "topho_vanphong", password: "123", tasks: [], yearlyEval: "Chưa đánh giá" }
+        ];
+
+        // 3. LẮNG NGHE DỮ LIỆU TỪ FIREBASE (NHÁNH vanphong)
+        db.ref('vanphong/plans').on('value', snapshot => {
+            const data = snapshot.val();
+            plans = data ? (Array.isArray(data) ? data : Object.values(data)) : [];
+            if (document.getElementById('main-app').classList.contains('active')) renderPlans();
+        });
+
+        db.ref('vanphong/meetings').on('value', snapshot => {
+            const data = snapshot.val();
+            meetings = data ? (Array.isArray(data) ? data : Object.values(data)) : [];
+            
+            if (document.getElementById('main-app').classList.contains('active')) {
+                renderMeetings();
+                if (currentMeetingId && document.getElementById('detail-screen').classList.contains('active')) {
+                    const updatedM = meetings.find(x => x.id === currentMeetingId);
+                    if (updatedM) {
+                        if(!updatedM.customHtml) {
+                            renderComments();
+                            document.getElementById('d-conclusion').innerHTML = formatParagraphs(updatedM.conclusion || '......................................................................................................');
+                        }
+                        document.getElementById('c-deadline-input').value = updatedM.deadline || '';
+                    }
+                }
+            }
+        });
+
+        db.ref('vanphong/members').on('value', snapshot => {
+            const data = snapshot.val();
+            if (!data) {
+                db.ref('vanphong/members').set(defaultMembers);
+                membersData = defaultMembers;
+            } else {
+                membersData = Array.isArray(data) ? data : Object.values(data);
+            }
+            
+            membersData.forEach(m => { 
+                if (!m.tasks) m.tasks = []; 
+                else if (!Array.isArray(m.tasks)) m.tasks = Object.values(m.tasks);
+                if (!m.yearlyEval) m.yearlyEval = "Chưa đánh giá"; 
+            });
+            
+            if (document.getElementById('main-app').classList.contains('active')) {
+                renderMembers();
+                renderTaskOverview();
+                if (viewingTaskTeacherIndex >= 0 && document.getElementById('task-detail').style.display === 'block') {
+                    renderTeacherTasks();
+                }
+                if (document.getElementById('tab-stats-content').style.display === 'block') renderStats();
+            }
+        });
+
+        db.ref('vanphong/settings/points').on('value', snapshot => {
+            if(snapshot.val()) {
+                evalPoints = snapshot.val();
+            }
+            if (document.getElementById('main-app').classList.contains('active') && document.getElementById('tab-stats-content').style.display === 'block') {
+                renderStats();
+            }
+        });
+
+        // HÀM TIỆN ÍCH
+        function formatParagraphs(text) {
+            if (!text) return '';
+            let paragraphs = text.split(/\n+/).filter(p => p.trim() !== '');
+            return paragraphs.map(p => `<p>${p}</p>`).join('');
+        }
+
+        function getBadgeClass(status) {
+            if (status === 'Chưa hoàn thành') return 'bg-danger';
+            if (status === 'Hoàn thành') return 'bg-primary';
+            if (status === 'Hoàn thành tốt') return 'bg-success';
+            if (status === 'Hoàn thành xuất sắc') return 'bg-warning';
+            return 'bg-secondary';
+        }
+
+        function showScreen(screenId) {
+            document.querySelectorAll('body > .screen').forEach(el => el.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+            if (screenId === 'main-app') { 
+                renderPlans(); renderMeetings(); renderMembers(); renderTaskOverview(); renderStats();
+            }
+        }
+
+        function switchTab(tabName) {
+            ['plan', 'meeting', 'member', 'task', 'stats'].forEach(t => {
+                document.getElementById('tab-' + t).classList.remove('active-tab');
+                document.getElementById('tab-' + t + '-content').style.display = 'none';
+            });
+            
+            document.getElementById('tab-' + tabName).classList.add('active-tab');
+            document.getElementById('tab-' + tabName + '-content').style.display = 'block';
+
+            if (tabName === 'task') closeTaskDetail(); 
+            if (tabName === 'plan') cancelEditPlan(); 
+            if (tabName === 'stats') renderStats();
+        }
+
+        function login() {
+            if (membersData.length === 0) {
+                alert("Đang tải dữ liệu từ máy chủ, vui lòng đợi 1-2 giây rồi thử lại!");
+                return;
+            }
+            const un = document.getElementById('login-username').value.trim();
+            const pw = document.getElementById('login-password').value.trim();
+            if (!un || !pw) { alert("Vui lòng nhập đầy đủ tài khoản và mật khẩu!"); return; }
+
+            const user = membersData.find(m => m.username === un && m.password === pw);
+            if (!user) { alert("Sai tên đăng nhập hoặc mật khẩu!"); return; }
+
+            currentUser.name = user.name;
+            currentUser.username = user.username;
+            currentUser.role = (user.username === 'admin' || user.role.toLowerCase().includes('tổ trưởng')) ? 'admin' : 'member';
+            
+            document.getElementById('user-info').innerHTML = `<span style="font-family:'Segoe UI'; font-size: 14px;"><b>Xin chào:</b> ${currentUser.name} | <a href="#" style="color:white; text-decoration: underline;" onclick="logout()">Thoát</a></span>`;
+            
+            const adminElements = document.querySelectorAll('.admin-only');
+            const adminCells = document.querySelectorAll('.admin-only-cell');
+            if(currentUser.role === 'admin') {
+                adminElements.forEach(el => el.style.display = 'block');
+                adminCells.forEach(el => el.style.display = 'table-cell');
+            } else {
+                adminElements.forEach(el => el.style.display = 'none');
+                adminCells.forEach(el => el.style.display = 'none');
+            }
+
+            document.getElementById('login-username').value = '';
+            document.getElementById('login-password').value = '';
+            
+            switchTab('plan');
+            showScreen('main-app');
+        }
+
+        function logout() { currentUser = { id: '', name: '', role: '', username: '' }; cancelEdit(); cancelEditPlan(); showScreen('login-screen'); }
+
+        // KẾ HOẠCH
+        function renderPlans() {
+            const tbody = document.getElementById('plan-list');
+            tbody.innerHTML = '';
+            
+            if (plans.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#666;">Chưa có kế hoạch nào được tạo.</td></tr>';
+                return;
+            }
+
+            plans.forEach((pl, index) => {
+                const tr = document.createElement('tr');
+                let adminCols = '';
+                if (currentUser.role === 'admin') {
+                    adminCols = `
+                        <td class="admin-only-cell" style="text-align: center; vertical-align: middle;">
+                            <button class="btn-warning" style="padding: 4px 8px; margin-bottom: 5px; width: 100%;" onclick="editPlan(${index})">Sửa</button>
+                            <button class="btn-danger" style="padding: 4px 8px; width: 100%;" onclick="deletePlan(${index})">Xóa</button>
+                        </td>
+                    `;
+                }
+                tr.innerHTML = `
+                    <td style="text-align: center; vertical-align: middle;"><b>${index + 1}</b></td>
+                    <td style="text-align: center; vertical-align: middle;"><b>${pl.time}</b></td>
+                    <td><div class="no-indent-text" style="font-size: 14px;">${formatParagraphs(pl.content)}</div></td>
+                    <td><div class="no-indent-text" style="font-size: 14px;">${formatParagraphs(pl.note || '')}</div></td>
+                    ${adminCols}
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function savePlan() {
+            const time = document.getElementById('pl-time').value.trim();
+            const content = document.getElementById('pl-content').value.trim();
+            const note = document.getElementById('pl-note').value.trim();
+
+            if (!time || !content) { alert('Vui lòng nhập Thời gian và Nội dung kế hoạch!'); return; }
+
+            if (editingPlanIndex >= 0) {
+                plans[editingPlanIndex] = { time, content, note };
+            } else {
+                plans.push({ time, content, note });
+            }
+
+            db.ref('vanphong/plans').set(plans).then(() => {
+                cancelEditPlan();
+                alert(editingPlanIndex >= 0 ? "Đã cập nhật kế hoạch!" : "Đã thêm kế hoạch mới!");
+            });
+        }
+
+        function editPlan(index) {
+            editingPlanIndex = index;
+            const pl = plans[index];
+            document.getElementById('pl-time').value = pl.time || '';
+            document.getElementById('pl-content').value = pl.content || '';
+            document.getElementById('pl-note').value = pl.note || '';
+            
+            document.getElementById('form-plan-title').innerText = "Sửa kế hoạch (STT " + (index + 1) + ")";
+            document.getElementById('btn-save-plan').innerText = "Cập nhật";
+            document.getElementById('btn-save-plan').className = "btn-warning";
+            document.getElementById('btn-cancel-edit-plan').style.display = "inline-block";
+            document.getElementById('admin-plan-form').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function cancelEditPlan() {
+            editingPlanIndex = -1;
+            document.getElementById('pl-time').value = '';
+            document.getElementById('pl-content').value = '';
+            document.getElementById('pl-note').value = '';
+            
+            document.getElementById('form-plan-title').innerText = "+ Thêm Kế hoạch mới";
+            document.getElementById('btn-save-plan').innerText = "Lưu kế hoạch";
+            document.getElementById('btn-save-plan').className = "btn-success";
+            document.getElementById('btn-cancel-edit-plan').style.display = "none";
+        }
+
+        function deletePlan(index) {
+            if (confirm("Chắc chắn xóa kế hoạch này khỏi danh sách?")) {
+                plans.splice(index, 1);
+                db.ref('vanphong/plans').set(plans);
+            }
+        }
+
+        // THÀNH VIÊN - ẨN TÀI KHOẢN ADMIN
+        function renderMembers() {
+            const tbody = document.getElementById('member-list');
+            tbody.innerHTML = '';
+            membersData.forEach((mb, index) => {
+                if (mb.username === 'admin') return;
+
+                const tr = document.createElement('tr');
+                let adminCols = '';
+                if (currentUser.role === 'admin') {
+                    adminCols = `
+                        <td class="admin-only-cell">${mb.username || '<i>Chưa cấp</i>'}</td>
+                        <td class="admin-only-cell">${mb.password || '<i>Chưa cấp</i>'}</td>
+                        <td class="admin-only-cell" style="text-align: center;"><button class="btn-warning" onclick="editMember(${index})">Sửa</button></td>
+                    `;
+                }
+                tr.innerHTML = `<td><b>${mb.name}</b></td><td>${mb.role}</td><td>${mb.subject}</td><td>${mb.task}</td>${adminCols}`;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function saveMember() {
+            const name = document.getElementById('mb-name').value.trim();
+            const role = document.getElementById('mb-role').value.trim();
+            const subject = document.getElementById('mb-subject').value.trim();
+            const task = document.getElementById('mb-task').value.trim();
+            const username = document.getElementById('mb-username').value.trim();
+            const password = document.getElementById('mb-password').value.trim();
+
+            if(!name || !role) { alert('Vui lòng nhập ít nhất Họ tên và Chức vụ!'); return; }
+
+            const isDuplicate = membersData.some((m, idx) => m.username === username && idx !== editingMemberIndex && username !== "");
+            if (isDuplicate) { alert("Tên đăng nhập này đã tồn tại, vui lòng chọn tên khác!"); return; }
+
+            if (editingMemberIndex >= 0) {
+                const oldTasks = membersData[editingMemberIndex].tasks || [];
+                const oldEval = membersData[editingMemberIndex].yearlyEval || 'Chưa đánh giá';
+                membersData[editingMemberIndex] = { name, role, subject, task, username, password, tasks: oldTasks, yearlyEval: oldEval };
+            } else {
+                membersData.push({ name, role, subject, task, username, password, tasks: [], yearlyEval: "Chưa đánh giá" });
+            }
+
+            db.ref('vanphong/members').set(membersData).then(() => {
+                cancelEdit();
+            }).catch(error => {
+                alert("Lỗi khi lưu: " + error.message);
+            });
+        }
+
+        function editMember(index) {
+            editingMemberIndex = index; const mb = membersData[index];
+            document.getElementById('mb-name').value = mb.name || ''; document.getElementById('mb-role').value = mb.role || '';
+            document.getElementById('mb-subject').value = mb.subject || ''; document.getElementById('mb-task').value = mb.task || '';
+            document.getElementById('mb-username').value = mb.username || ''; document.getElementById('mb-password').value = mb.password || '';
+            document.getElementById('form-member-title').innerText = "Sửa tài khoản / Thông tin";
+            document.getElementById('btn-save-member').innerText = "Cập nhật";
+            document.getElementById('btn-save-member').className = "btn-warning";
+            document.getElementById('btn-cancel-edit').style.display = "inline-block";
+            document.getElementById('admin-member-form').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function cancelEdit() {
+            editingMemberIndex = -1;
+            document.getElementById('mb-name').value = ''; document.getElementById('mb-role').value = '';
+            document.getElementById('mb-subject').value = ''; document.getElementById('mb-task').value = '';
+            document.getElementById('mb-username').value = ''; document.getElementById('mb-password').value = '';
+            document.getElementById('form-member-title').innerText = "+ Thêm/Cấp tài khoản thành viên mới";
+            document.getElementById('btn-save-member').innerText = "Lưu thành viên";
+            document.getElementById('btn-save-member').className = "btn-success";
+            document.getElementById('btn-cancel-edit').style.display = "none";
+        }
+
+        // NHIỆM VỤ - ẨN TÀI KHOẢN ADMIN
+        function renderTaskOverview() {
+            const tbody = document.getElementById('task-overview-list'); 
+            tbody.innerHTML = '';
+            membersData.forEach((mb, index) => {
+                if (mb.username === 'admin') return;
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><b>${mb.name}</b><br><small style="color:#666">${mb.role}</small></td>
+                    <td style="text-align: center; font-size: 18px; font-weight: bold;">${mb.tasks ? mb.tasks.length : 0}</td>
+                    <td><span class="badge ${getBadgeClass(mb.yearlyEval)}">${mb.yearlyEval || 'Chưa đánh giá'}</span></td>
+                    <td style="text-align: center;"><button class="btn-info" onclick="openTaskDetail(${index})">Chi tiết</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function openTaskDetail(teacherIndex) {
+            viewingTaskTeacherIndex = teacherIndex;
+            document.getElementById('task-overview').style.display = 'none';
+            document.getElementById('task-detail').style.display = 'block';
+            const mb = membersData[teacherIndex];
+            document.getElementById('td-teacher-name').innerText = mb.name;
+            
+            if (currentUser.role === 'admin') {
+                document.getElementById('td-yearly-eval').value = mb.yearlyEval || 'Chưa đánh giá';
+                document.getElementById('td-yearly-view-only').style.display = 'none';
+            } else {
+                document.getElementById('td-yearly-view-only').innerText = `Xếp loại năm: ${mb.yearlyEval}`;
+                document.getElementById('td-yearly-view-only').style.display = 'block';
+            }
+            renderTeacherTasks();
+        }
+
+        function closeTaskDetail() { viewingTaskTeacherIndex = -1; document.getElementById('task-overview').style.display = 'block'; document.getElementById('task-detail').style.display = 'none'; renderTaskOverview(); }
+
+        function renderTeacherTasks() {
+            const mb = membersData[viewingTaskTeacherIndex];
+            const tbody = document.getElementById('td-task-list'); tbody.innerHTML = '';
+            let counts = { 'Chưa hoàn thành': 0, 'Hoàn thành': 0, 'Hoàn thành tốt': 0, 'Hoàn thành xuất sắc': 0, 'Chưa đánh giá': 0 };
+            
+            if (!mb.tasks || mb.tasks.length === 0) { tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #666;">Chưa có nhiệm vụ.</td></tr>'; } 
+            else {
+                mb.tasks.forEach((t, tIndex) => {
+                    counts[t.status || 'Chưa đánh giá']++;
+                    const isOwnerOrAdmin = (currentUser.username === mb.username) || (currentUser.role === 'admin');
+                    let statusHtml = currentUser.role === 'admin' ? `
+                        <select id="t-status-${tIndex}" style="margin:0; padding:5px;">
+                            <option value="Chưa đánh giá" ${t.status === 'Chưa đánh giá' ? 'selected' : ''}>Chưa đánh giá</option>
+                            <option value="Chưa hoàn thành" ${t.status === 'Chưa hoàn thành' ? 'selected' : ''}>Chưa hoàn thành</option>
+                            <option value="Hoàn thành" ${t.status === 'Hoàn thành' ? 'selected' : ''}>Hoàn thành</option>
+                            <option value="Hoàn thành tốt" ${t.status === 'Hoàn thành tốt' ? 'selected' : ''}>Hoàn thành tốt</option>
+                            <option value="Hoàn thành xuất sắc" ${t.status === 'Hoàn thành xuất sắc' ? 'selected' : ''}>Hoàn thành xuất sắc</option>
+                        </select>
+                    ` : `<span class="badge ${getBadgeClass(t.status)}">${t.status || 'Chưa đánh giá'}</span>`;
+                    
+                    let noteHtml = currentUser.role === 'admin' ? `<textarea id="t-note-${tIndex}" rows="2" placeholder="Ghi chú của Tổ trưởng...">${t.note || ''}</textarea>` : `<div class="format-text" style="font-size: 13px;">${formatParagraphs(t.note || '')}</div>`;
+
+                    let actionHtml = isOwnerOrAdmin ? `<button class="btn-success" style="padding: 5px 10px; margin-bottom: 5px; width: 100%;" onclick="updateTask(${tIndex})">Lưu</button>` : '';
+                    if (currentUser.role === 'admin') actionHtml += `<button class="btn-danger" style="padding: 5px 10px; width: 100%;" onclick="deleteTask(${tIndex})">Xóa</button>`;
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><b>${t.name}</b><br><small style="color:#666">Giao: ${t.date}</small></td>
+                        <td><textarea id="t-result-${tIndex}" rows="2" ${isOwnerOrAdmin ? '' : 'disabled'}>${t.result || ''}</textarea></td>
+                        <td>${statusHtml}</td>
+                        <td>${noteHtml}</td>
+                        <td style="text-align: center; vertical-align: middle;">${actionHtml}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+            document.getElementById('td-statistics').innerHTML = `<b>Tổng: ${mb.tasks ? mb.tasks.length : 0} nhiệm vụ</b> <br><small style="color: #6c757d;">C.Đánh giá: ${counts['Chưa đánh giá']}</small> | <small style="color: #dc3545;">Chưa HT: ${counts['Chưa hoàn thành']}</small> | <small style="color: #007bff;">Hoàn thành: ${counts['Hoàn thành']}</small> | <small style="color: #28a745;">HT Tốt: ${counts['Hoàn thành tốt']}</small> | <small style="color: #ffc107;">HT Xuất sắc: ${counts['Hoàn thành xuất sắc']}</small>`;
+        }
+
+        function assignTask() {
+            const taskName = document.getElementById('new-task-name').value.trim();
+            if (!taskName) return alert("Nhập tên nhiệm vụ!");
+            const now = new Date();
+            
+            if(!membersData[viewingTaskTeacherIndex].tasks) membersData[viewingTaskTeacherIndex].tasks = [];
+            membersData[viewingTaskTeacherIndex].tasks.push({ name: taskName, date: now.getDate() + '/' + (now.getMonth()+1) + '/' + now.getFullYear(), result: "", status: "Chưa đánh giá", note: "" });
+            
+            db.ref('vanphong/members').set(membersData).then(() => {
+                document.getElementById('new-task-name').value = '';
+            });
+        }
+
+        function updateTask(taskIndex) {
+            const mb = membersData[viewingTaskTeacherIndex];
+            if (document.getElementById(`t-result-${taskIndex}`)) mb.tasks[taskIndex].result = document.getElementById(`t-result-${taskIndex}`).value.trim();
+            if (document.getElementById(`t-status-${taskIndex}`)) mb.tasks[taskIndex].status = document.getElementById(`t-status-${taskIndex}`).value;
+            if (document.getElementById(`t-note-${taskIndex}`)) mb.tasks[taskIndex].note = document.getElementById(`t-note-${taskIndex}`).value.trim();
+            
+            db.ref('vanphong/members').set(membersData).then(() => {
+                alert("Đã cập nhật tiến độ lên máy chủ!");
+            });
+        }
+
+        function deleteTask(taskIndex) {
+            if(confirm("Xóa nhiệm vụ này?")) { 
+                membersData[viewingTaskTeacherIndex].tasks.splice(taskIndex, 1); 
+                db.ref('vanphong/members').set(membersData); 
+            }
+        }
+
+        function saveYearlyEval() {
+            membersData[viewingTaskTeacherIndex].yearlyEval = document.getElementById('td-yearly-eval').value;
+            db.ref('vanphong/members').set(membersData).then(() => {
+                alert("Đã chốt xếp loại năm học!");
+            });
+        }
+
+        // CUỘC HỌP
+        function saveMeeting() {
+            const title = document.getElementById('m-title').value.trim();
+            const time = document.getElementById('m-time').value;
+            const deadline = document.getElementById('m-deadline').value;
+            const content = document.getElementById('m-content').value.trim();
+            if (!title || !content) return alert('Nhập đủ Tiêu đề và Nội dung!');
+
+            const newM = { 
+                id: Date.now(), 
+                title: title, 
+                time: time.replace('T', ' '), 
+                deadline: deadline,
+                content: content, 
+                conclusion: "", 
+                host: currentUser.name, 
+                comments: [] 
+            };
+            meetings.push(newM);
+            
+            db.ref('vanphong/meetings').set(meetings).then(() => {
+                document.getElementById('m-title').value = ''; 
+                document.getElementById('m-time').value = ''; 
+                document.getElementById('m-deadline').value = '';
+                document.getElementById('m-content').value = '';
+                showScreen('main-app');
+            });
+        }
+
+        function deleteMeeting(id) {
+            if (confirm('XÓA biên bản này?')) { 
+                meetings = meetings.filter(x => x.id !== id); 
+                db.ref('vanphong/meetings').set(meetings); 
+            }
+        }
+
+        function renderMeetings() {
+            const listDiv = document.getElementById('meeting-list'); listDiv.innerHTML = '';
+            if (meetings.length === 0) return listDiv.innerHTML = '<p>Chưa có cuộc họp nào.</p>';
+            [...meetings].reverse().forEach(m => {
+                const div = document.createElement('div'); div.className = 'meeting-item';
+                
+                let commentsArr = m.comments ? (Array.isArray(m.comments) ? m.comments : Object.values(m.comments)) : [];
+                let commentCount = commentsArr.length;
+
+                let isLocked = false;
+                if (m.deadline) {
+                    let deadlineTime = new Date(m.deadline).getTime();
+                    let nowTime = new Date().getTime();
+                    if (nowTime > deadlineTime) isLocked = true;
+                }
+
+                let actionButtons = '';
+                if (isLocked && currentUser.role !== 'admin') {
+                    actionButtons = `<button class="btn-disabled" onclick="alert('Biên bản này đã hết hạn nhận xét!')">Đã khóa</button>`;
+                } else {
+                    actionButtons = `<button onclick="viewMeeting(${m.id})">Tham gia / Xem</button>`;
+                }
+
+                if (currentUser.role === 'admin') actionButtons += `<button class="btn-danger" style="margin-left: 5px;" onclick="deleteMeeting(${m.id})">Xóa</button>`;
+                
+                div.innerHTML = `
+                    <div style="font-family: 'Segoe UI', sans-serif;">
+                        <h4 style="margin: 0 0 5px 0; color: #0056b3;">${m.title} ${isLocked ? '<span style="color: red; font-size:12px;">(Đã khóa)</span>' : ''}</h4>
+                        <small>Người tạo: ${m.host} | Số ý kiến: ${commentCount}</small>
+                    </div>
+                    <div>${actionButtons}</div>
+                `;
+                listDiv.appendChild(div);
+            });
+        }
+
+        function viewMeeting(id) {
+            currentMeetingId = id; const m = meetings.find(x => x.id === id);
+            document.getElementById('print-area').innerHTML = printAreaTemplate;
+            
+            if (m.customHtml) {
+                document.getElementById('print-area').innerHTML = m.customHtml;
+                if (currentUser.role === 'admin') {
+                    document.getElementById('btn-restore-print').style.display = 'inline-block';
+                }
+                document.getElementById('c-conclusion-text').value = m.conclusion || '';
+                document.getElementById('c-deadline-input').value = m.deadline || '';
+                showScreen('detail-screen');
+                return;
+            }
+            
+            document.getElementById('btn-restore-print').style.display = 'none';
+            document.getElementById('d-title').innerText = m.title;
+            
+            let displayTime = m.time || 'Chưa xác định';
+            if (m.time) {
+                try {
+                    const dateObj = new Date(m.time.replace(' ', 'T'));
+                    if (!isNaN(dateObj.getTime())) {
+                        displayTime = `${dateObj.getDate()}/${dateObj.getMonth() + 1}/${dateObj.getFullYear()}`;
+                    }
+                } catch (e) {}
+            }
+            document.getElementById('d-time').innerText = displayTime;
+            
+            const toTruong = membersData.find(mb => mb.role && mb.role.toLowerCase().includes('tổ trưởng') && mb.username !== 'admin');
+            const hostName = toTruong ? toTruong.name : (m.host || '.........................');
+            
+            document.getElementById('d-host').innerText = hostName;
+            document.getElementById('d-content').innerHTML = formatParagraphs(m.content);
+            
+            if (m.time) {
+                try {
+                    const dateObj = new Date(m.time.replace(' ', 'T'));
+                    if (!isNaN(dateObj.getTime())) {
+                        document.getElementById('d-date-location').innerText = `ngày ${dateObj.getDate().toString().padStart(2, '0')} tháng ${(dateObj.getMonth() + 1).toString().padStart(2, '0')} năm ${dateObj.getFullYear()}`;
+                    }
+                } catch (e) {}
+            }
+
+            document.getElementById('d-host-name').innerText = hostName;
+            const secretary = membersData.find(mb => {
+                if (mb.username === 'admin') return false; 
+                const r = (mb.role || '').toLowerCase(); const t = (mb.task || '').toLowerCase();
+                return r.includes('thư ký') || r.includes('thư kí') || t.includes('thư ký') || t.includes('thư kí');
+            });
+            document.getElementById('d-secretary-name').innerText = secretary ? secretary.name : '.........................';
+            
+            document.getElementById('d-conclusion').innerHTML = formatParagraphs(m.conclusion || '......................................................................................................');
+            document.getElementById('c-conclusion-text').value = m.conclusion || '';
+            document.getElementById('c-deadline-input').value = m.deadline || '';
+
+            document.getElementById('print-header-info').style.display = 'block';
+            document.getElementById('print-footer-info').style.display = 'block';
+            renderComments(); 
+            showScreen('detail-screen');
+        }
+
+        function updateDeadline() {
+            const newDeadline = document.getElementById('c-deadline-input').value;
+            const mIndex = meetings.findIndex(x => x.id === currentMeetingId);
+            meetings[mIndex].deadline = newDeadline;
+            db.ref('vanphong/meetings').set(meetings).then(() => {
+                alert("Đã cập nhật hạn chót nhận xét!");
+            });
+        }
+
+        function saveConclusion() {
+            const text = document.getElementById('c-conclusion-text').value.trim();
+            const mIndex = meetings.findIndex(x => x.id === currentMeetingId);
+            meetings[mIndex].conclusion = text;
+            
+            db.ref('vanphong/meetings').set(meetings).then(() => {
+                alert("Đã lưu Kết luận cuộc họp thành công!");
+                if(!meetings[mIndex].customHtml) {
+                    document.getElementById('d-conclusion').innerHTML = formatParagraphs(text);
+                }
+            });
+        }
+
+        function addComment() {
+            const text = document.getElementById('c-text').value.trim();
+            if (!text) return alert('Vui lòng nhập ý kiến!');
+            const mIndex = meetings.findIndex(x => x.id === currentMeetingId);
+            
+            if(!meetings[mIndex].comments) meetings[mIndex].comments = [];
+            if(!Array.isArray(meetings[mIndex].comments)) {
+                meetings[mIndex].comments = Object.values(meetings[mIndex].comments);
+            }
+
+            meetings[mIndex].comments.push({ user: currentUser.name, text: text }); 
+            
+            db.ref('vanphong/meetings').set(meetings).then(() => {
+                document.getElementById('c-text').value = '';
+            });
+        }
+
+        function renderComments() {
+            const m = meetings.find(x => x.id === currentMeetingId);
+            const cDiv = document.getElementById('d-comments');
+            cDiv.innerHTML = '';
+            
+            let rawComments = m.comments ? (Array.isArray(m.comments) ? m.comments : Object.values(m.comments)) : [];
+
+            if (rawComments.length === 0) {
+                cDiv.innerHTML = '<p><i>Chưa có ý kiến thảo luận nào.</i></p>';
+            } else {
+                const grouped = [];
+                rawComments.forEach(c => {
+                    const existing = grouped.find(g => g.user === c.user);
+                    if (existing) {
+                        existing.texts.push(c.text);
+                    } else {
+                        grouped.push({
+                            user: c.user,
+                            texts: [c.text]
+                        });
+                    }
+                });
+
+                grouped.forEach((g, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'comment-box';
+                    const combinedText = g.texts.join('\n\n'); 
+                    div.innerHTML = `
+                        <div class="comment-meta">
+                            <span style="font-weight: bold;">${index + 1}. </span>
+                            <span style="font-style: italic;">${g.user}:</span> 
+                        </div>
+                        <div class="format-text">${formatParagraphs(combinedText)}</div>
+                    `;
+                    cDiv.appendChild(div);
+                });
+            }
+        }
+
+        // THỐNG KÊ - ẨN TÀI KHOẢN ADMIN
+        function enableEditPoints() {
+            document.getElementById('pt-xs').disabled = false;
+            document.getElementById('pt-tot').disabled = false;
+            document.getElementById('pt-ht').disabled = false;
+            document.getElementById('pt-cht').disabled = false;
+            document.getElementById('btn-edit-points').style.display = 'none';
+            document.getElementById('btn-save-points').style.display = 'inline-block';
+        }
+
+        function savePoints() {
+            const xs = parseFloat(document.getElementById('pt-xs').value) || 0;
+            const tot = parseFloat(document.getElementById('pt-tot').value) || 0;
+            const ht = parseFloat(document.getElementById('pt-ht').value) || 0;
+            const cht = parseFloat(document.getElementById('pt-cht').value) || 0;
+            
+            db.ref('vanphong/settings/points').set({ xs, tot, ht, cht }).then(() => {
+                document.getElementById('pt-xs').disabled = true;
+                document.getElementById('pt-tot').disabled = true;
+                document.getElementById('pt-ht').disabled = true;
+                document.getElementById('pt-cht').disabled = true;
+                document.getElementById('btn-edit-points').style.display = 'inline-block';
+                document.getElementById('btn-save-points').style.display = 'none';
+                alert("Đã cập nhật quy tắc tính điểm!");
+            });
+        }
+
+        function renderStats() {
+            const tbody = document.getElementById('stats-table-list');
+            tbody.innerHTML = '';
+            
+            document.getElementById('pt-xs').value = evalPoints.xs;
+            document.getElementById('pt-tot').value = evalPoints.tot;
+            document.getElementById('pt-ht').value = evalPoints.ht;
+            document.getElementById('pt-cht').value = evalPoints.cht;
+
+            let labels = [];
+            let scores = [];
+
+            membersData.forEach((mb) => {
+                if (mb.username === 'admin') return;
+
+                let xs = 0, tot = 0, ht = 0, cht = 0;
+                
+                if (mb.tasks && mb.tasks.length > 0) {
+                    mb.tasks.forEach(t => {
+                        if (t.status === 'Hoàn thành xuất sắc') xs++;
+                        else if (t.status === 'Hoàn thành tốt') tot++;
+                        else if (t.status === 'Hoàn thành') ht++;
+                        else if (t.status === 'Chưa hoàn thành') cht++;
+                    });
+                }
+                
+                let totalTasks = xs + tot + ht + cht;
+                let totalSum = (xs * evalPoints.xs) + (tot * evalPoints.tot) + (ht * evalPoints.ht) + (cht * evalPoints.cht);
+                
+                let averageScore = 0;
+                if (totalTasks > 0) {
+                    averageScore = parseFloat((totalSum / totalTasks).toFixed(2));
+                }
+                
+                labels.push(mb.name);
+                scores.push(averageScore);
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><b>${mb.name}</b></td>
+                    <td style="text-align: center; color: #b38600; font-weight: bold; background-color: #fff9e6;">${xs}</td>
+                    <td style="text-align: center; color: #28a745; font-weight: bold; background-color: #e6f4ea;">${tot}</td>
+                    <td style="text-align: center; color: #007bff; font-weight: bold; background-color: #e6f0ff;">${ht}</td>
+                    <td style="text-align: center; color: #dc3545; font-weight: bold; background-color: #ffe6e6;">${cht}</td>
+                    <td style="text-align: center;"><b>${totalTasks}</b></td>
+                    <td style="text-align: center; color: red; font-size: 16px;"><b>${averageScore}</b></td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            const ctx = document.getElementById('evaluationChart').getContext('2d');
+            if (myChart) {
+                myChart.destroy(); 
+            }
+            
+            myChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Điểm trung bình thi đua',
+                        data: scores,
+                        backgroundColor: '#17a2b8',
+                        borderColor: '#117a8b',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        title: {
+                            display: true,
+                            text: 'Biểu đồ điểm trung bình của nhân viên'
+                        }
+                    }
+                }
+            });
+        }
+
+        // CHỈNH SỬA BẢN IN
+        function toggleEditPrint() {
+            const printArea = document.getElementById('print-area');
+            const isEditable = printArea.getAttribute('contenteditable') === 'true';
+            
+            if (!isEditable) {
+                printArea.setAttribute('contenteditable', 'true');
+                printArea.style.border = '2px dashed #ffc107';
+                printArea.style.padding = '10px';
+                document.getElementById('btn-edit-print').innerHTML = '💾 Lưu Bản In';
+                document.getElementById('btn-edit-print').className = 'btn-primary';
+                alert('CHẾ ĐỘ SỬA TRỰC TIẾP TRƯỚC KHI IN ĐÃ BẬT.\n- Bạn có thể click trực tiếp vào văn bản để sửa.\n- Sau khi sửa xong, nhấn "Lưu Bản In".');
+            } else {
+                printArea.setAttribute('contenteditable', 'false');
+                printArea.style.border = 'none';
+                printArea.style.padding = '0';
+                document.getElementById('btn-edit-print').innerHTML = '📝 Sửa Bản In';
+                document.getElementById('btn-edit-print').className = 'btn-warning';
+                
+                const mIndex = meetings.findIndex(x => x.id === currentMeetingId);
+                if (mIndex !== -1) {
+                    meetings[mIndex].customHtml = printArea.innerHTML;
+                    db.ref('vanphong/meetings').set(meetings).then(() => {
+                        alert('Đã lưu thành công phiên bản tùy chỉnh!');
+                        document.getElementById('btn-restore-print').style.display = 'inline-block';
+                    });
+                }
+            }
+        }
+
+        function restoreOriginalPrint() {
+            if(confirm("Khôi phục lại nội dung tự động? Tất cả các chỉnh sửa bằng tay trên bản in sẽ bị xóa!")) {
+                const mIndex = meetings.findIndex(x => x.id === currentMeetingId);
+                if (mIndex !== -1) {
+                    meetings[mIndex].customHtml = null;
+                    db.ref('vanphong/meetings').set(meetings).then(() => {
+                        alert('Đã khôi phục thành công bản gốc!');
+                        viewMeeting(currentMeetingId);
+                    });
+                }
+            }
+        }
+    </script>
+</body>
+</html>
