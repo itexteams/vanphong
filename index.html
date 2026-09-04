@@ -176,7 +176,7 @@
                             <th>Nhiệm vụ phân công</th>
                             <th class="admin-only-cell">Tài khoản</th>
                             <th class="admin-only-cell">Mật khẩu</th>
-                            <th class="admin-only-cell" style="width: 80px;">Thao tác</th>
+                            <th class="admin-only-cell" style="width: 90px; text-align: center;">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody id="member-list"></tbody>
@@ -698,7 +698,10 @@
                     adminCols = `
                         <td class="admin-only-cell">${mb.username || '<i>Chưa cấp</i>'}</td>
                         <td class="admin-only-cell">${mb.password || '<i>Chưa cấp</i>'}</td>
-                        <td class="admin-only-cell" style="text-align: center;"><button class="btn-warning" onclick="editMember(${index})">Sửa</button></td>
+                        <td class="admin-only-cell" style="text-align: center; vertical-align: middle;">
+                            <button class="btn-warning" style="padding: 4px 8px; margin-bottom: 5px; width: 100%;" onclick="editMember(${index})">Sửa</button>
+                            <button class="btn-danger" style="padding: 4px 8px; width: 100%;" onclick="deleteMember(${index})">Xóa</button>
+                        </td>
                     `;
                 }
                 tr.innerHTML = `<td><b>${mb.name}</b></td><td>${mb.role}</td><td>${mb.subject}</td><td>${mb.task}</td>${adminCols}`;
@@ -755,6 +758,25 @@
             document.getElementById('btn-save-member').innerText = "Lưu thành viên";
             document.getElementById('btn-save-member').className = "btn-success";
             document.getElementById('btn-cancel-edit').style.display = "none";
+        }
+
+        function deleteMember(index) {
+            if (membersData[index].username === 'admin') {
+                alert("Không thể xóa tài khoản Quản trị viên hệ thống!");
+                return;
+            }
+            
+            if (confirm(`Bạn có chắc chắn muốn xóa nhân viên "${membersData[index].name}" khỏi hệ thống?\nLưu ý: Toàn bộ dữ liệu nhiệm vụ và điểm số của nhân viên này cũng sẽ bị xóa!`)) {
+                membersData.splice(index, 1);
+                db.ref('vanphong/members').set(membersData).then(() => {
+                    alert("Đã xóa nhân viên thành công!");
+                    if (editingMemberIndex === index) {
+                        cancelEdit();
+                    }
+                }).catch(error => {
+                    alert("Lỗi khi xóa: " + error.message);
+                });
+            }
         }
 
         // NHIỆM VỤ - ẨN TÀI KHOẢN ADMIN
