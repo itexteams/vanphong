@@ -13,6 +13,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
+        /* CSS Định dạng giao diện chung */
         body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #f4f6f9; margin: 0; padding: 0; }
         header { background-color: #0056b3; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
         .container { max-width: 1000px; margin: 20px auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
@@ -39,6 +40,19 @@
         table.data-table th { background-color: #0056b3; color: white; text-align: center; vertical-align: middle; }
         table.data-table tr:nth-child(even) { background-color: #f9f9f9; }
 
+        /* BẢNG PHÂN CÔNG CHUẨN THỂ THỨC TRONG BẢN IN */
+        table.assignment-table { width: 100%; margin: 15px 0; border-collapse: collapse; font-family: 'Times New Roman', Times, serif; font-size: 14pt; table-layout: fixed; }
+        table.assignment-table th, table.assignment-table td { border: 1px solid #000; padding: 8px; vertical-align: middle; word-wrap: break-word; }
+        table.assignment-table th { font-weight: bold; text-align: center; }
+
+        /* NÚT KÉO ĐỂ THAY ĐỔI ĐỘ RỘNG (RESIZER) */
+        .col-resizer { position: absolute; top: 0; right: 0; width: 6px; height: 100%; cursor: col-resize; background-color: transparent; z-index: 10; transition: background-color 0.2s; }
+        .col-resizer:hover, .col-resizer:active { background-color: rgba(0, 86, 179, 0.5); }
+
+        /* Style cho các ô input nhập liệu động của bảng */
+        .dyn-cell { width: 100%; box-sizing: border-box; border: none; background: transparent; font-family: inherit; font-size: 14px; padding: 8px; resize: vertical; min-height: 40px; }
+        .dyn-cell:focus { outline: 1px solid #0056b3; background: #fff; }
+
         .meeting-item { border-left: 4px solid #0056b3; padding: 10px 15px; background: #f9f9f9; margin-bottom: 10px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
         
         .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; color: white; }
@@ -64,10 +78,10 @@
         .comment-meta { font-weight: bold; margin-bottom: 5px; margin-left: 1.27cm; }
         .comment-box .format-text p { margin-top: 5px; margin-left: 0; }
 
-        @page {
-            size: A4;
-            margin: 20mm;
-        }
+        /* Container của họp nhóm chuyên môn / bộ phận */
+        .sub-meeting-section { margin-top: 50px; border-top: 2px solid #000; padding-top: 30px; }
+
+        @page { size: A4; margin: 20mm; }
         @media print {
             body { background: white; }
             header, .no-print { display: none !important; }
@@ -76,6 +90,8 @@
             .print-header table { width: 100%; border: none; border-collapse: collapse; }
             .print-header td { border: none; padding: 0; vertical-align: top; }
             .document-body { margin-left: 10mm; } 
+            .page-break { page-break-before: always; }
+            .sub-meeting-section { border-top: none !important; margin-top: 20px; padding-top: 0; }
         }
         
         .point-input { width: 60px; padding: 5px; margin: 0; text-align: center; font-weight: bold; }
@@ -335,6 +351,28 @@
         <input type="datetime-local" id="m-deadline">
         <label>Nội dung triển khai:</label>
         <textarea id="m-content" rows="6" placeholder="Nhập nội dung... (Có thể ấn Enter xuống dòng, hệ thống tự động căn lề chuẩn 1.27cm)"></textarea>
+        
+        <!-- TRÌNH TẠO BẢNG ĐỘNG -->
+        <div style="background: #e9ecef; padding: 15px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #ccc;">
+            <h4 style="margin-top: 0; margin-bottom: 5px; color: #0056b3;">[Tùy chọn] Trình tạo bảng biểu động</h4>
+            <p style="font-size: 13.5px; color: #444; margin-top: 0; margin-bottom: 15px;">
+                <i>Hướng dẫn: Đặt chuột vào vị trí bất kỳ trong phần Nội dung ở trên rồi ấn nút "Chèn thẻ [BANG]". Khung văn bản sẽ có chữ <b>[BANG]</b>. Khi in, bảng sẽ được tự động thế vào chữ [BANG]. Cột màu xám dùng để tinh chỉnh chiều cao/rộng, sẽ không hiển thị khi in.</i>
+            </p>
+            
+            <div style="display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap;">
+                <button class="btn-info" type="button" onclick="insertPlaceholder()" style="font-weight:bold;">Chèn thẻ [BANG]</button>
+                <button class="btn-primary" type="button" onclick="dynAddRow()">+ Thêm dòng</button>
+                <button class="btn-danger" type="button" onclick="dynRemoveRow()">- Xóa dòng</button>
+                <button class="btn-primary" type="button" onclick="dynAddCol()" style="margin-left:15px;">+ Thêm cột</button>
+                <button class="btn-danger" type="button" onclick="dynRemoveCol()">- Xóa cột</button>
+            </div>
+            <div style="overflow-x: auto;">
+                <table class="data-table" style="margin-top: 0; background: white;">
+                    <tbody id="dynamic-table-body"></tbody>
+                </table>
+            </div>
+        </div>
+
         <button class="btn-success" onclick="saveMeeting()">Đăng thông báo</button>
         <button class="btn-danger" onclick="showScreen('main-app')">Hủy</button>
     </div>
@@ -349,6 +387,10 @@
             <button class="btn-danger" id="btn-restore-print" onclick="restoreOriginalPrint()" style="display:none; margin-bottom: 15px;">🔄 Khôi phục gốc</button>
         </div>
         <div style="clear: both;"></div>
+
+        <div class="no-print admin-only" style="background: #e6f7ff; padding: 10px; border-radius: 5px; border: 1px solid #91d5ff; margin-bottom: 20px; font-size: 14px; text-align: center;">
+            💡 <b>MẸO KÉO CHỈNH BẢNG:</b> Bạn có thể rê chuột vào <b>vạch ngăn cách bên phải</b> của các tiêu đề bảng ở dưới đây và <b>kéo thả</b> để chỉnh độ rộng cột trực tiếp!
+        </div>
 
         <div id="print-area">
             <div class="print-header screen" id="print-header-info" style="display: none;">
@@ -402,21 +444,65 @@
                         <p style="font-weight: bold; margin: 0;" id="d-host-name"></p>
                     </div>
                 </div>
+
+                <!-- VÙNG RENDER CÁC CUỘC HỌP NHÓM BÊN DƯỚI -->
+                <div id="d-sub-meetings-container"></div>
             </div>
         </div>
 
         <div class="no-print" style="margin-top: 30px; border-top: 2px solid #ccc; padding-top: 15px;">
-            <h4 style="font-family: 'Segoe UI', sans-serif;">Đóng góp ý kiến của bạn:</h4>
+            <h4 style="font-family: 'Segoe UI', sans-serif; color: #0056b3;">Đóng góp ý kiến của bạn:</h4>
+            <div style="display: flex; gap: 10px; margin-bottom: 5px; align-items: center;">
+                <label style="font-weight: bold; min-width: 150px;">Góp ý cho cuộc họp:</label>
+                <select id="c-target" style="margin: 0; padding: 8px; flex: 1;"><option value="main">Cuộc họp chung</option></select>
+            </div>
             <textarea id="c-text" rows="3" placeholder="Nhập ý kiến (ấn Enter để phân đoạn)..." style="font-family: 'Segoe UI', sans-serif;"></textarea>
-            <button onclick="addComment()">Gửi ý kiến</button>
+            <button onclick="addComment()" class="btn-primary">Gửi ý kiến</button>
             
             <div class="admin-only" style="margin-top: 20px; background: #e9ecef; padding: 15px; border-radius: 5px;">
-                <h4 style="margin-top: 0; font-family: 'Segoe UI', sans-serif; color: #0056b3;">Tổng hợp & Chốt Kết luận (Chỉ Chủ tọa thấy):</h4>
+                
+                <!-- TRÌNH CHỈNH SỬA BẢNG SAU KHI ĐÃ TẠO -->
+                <div id="edit-table-section" style="display: none; margin-bottom: 25px; border-bottom: 1px dashed #ccc; padding-bottom: 15px;">
+                    <h4 style="margin-top: 0; margin-bottom: 10px; color: #dc3545;">Chỉnh sửa Bảng phân công (Của cuộc họp này)</h4>
+                    <div style="display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap;">
+                        <button class="btn-primary" type="button" onclick="editDynAddRow()">+ Thêm dòng</button>
+                        <button class="btn-danger" type="button" onclick="editDynRemoveRow()">- Xóa dòng</button>
+                        <button class="btn-primary" type="button" onclick="editDynAddCol()" style="margin-left:15px;">+ Thêm cột</button>
+                        <button class="btn-danger" type="button" onclick="editDynRemoveCol()">- Xóa cột</button>
+                        <button class="btn-success" type="button" onclick="saveEditedTable()" style="margin-left:auto;">💾 Lưu & Cập nhật Bảng</button>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table class="data-table" style="margin-top: 0; background: white;">
+                            <tbody id="edit-dynamic-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <h4 style="margin-top: 0; font-family: 'Segoe UI', sans-serif; color: #0056b3;">Tổng hợp & Chốt Kết luận:</h4>
+                <div style="display: flex; gap: 10px; margin-bottom: 5px; align-items: center;">
+                    <label style="font-weight: bold; min-width: 150px;">Kết luận cho cuộc họp:</label>
+                    <select id="c-conclusion-target" style="margin: 0; padding: 8px; flex: 1;" onchange="loadTargetConclusion()">
+                        <option value="main">Cuộc họp chung</option>
+                    </select>
+                </div>
                 <textarea id="c-conclusion-text" rows="4" placeholder="Nhập nội dung kết luận..." style="font-family: inherit;"></textarea>
                 <button class="btn-warning" onclick="saveConclusion()" style="margin-bottom: 15px;">Lưu Kết luận</button>
                 
                 <hr style="border-top: 1px dashed #ccc;">
-                <h4 style="margin-top: 15px; font-family: 'Segoe UI', sans-serif; color: #0056b3;">Gia hạn / Mở khóa Biên bản:</h4>
+                
+                <h4 style="margin-top: 15px; font-family: 'Segoe UI', sans-serif; color: #28a745;">+ Tạo Biên Bản Họp Bộ phận (Gắn kèm)</h4>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <div style="flex: 2; min-width: 200px;"><input type="text" id="sub-title" placeholder="Tên bộ phận (VD: Bộ phận Kế toán, Y tế...)"></div>
+                    <div style="flex: 1; min-width: 150px;">
+                        <select id="sub-host" style="margin: 8px 0 15px;"><option value="">-- Chọn Nhóm trưởng --</option></select>
+                    </div>
+                </div>
+                <textarea id="sub-content" rows="3" placeholder="Nội dung triển khai của bộ phận..."></textarea>
+                <button class="btn-success" onclick="createSubMeeting()">Tạo cuộc họp bộ phận</button>
+
+                <hr style="border-top: 1px dashed #ccc; margin-top: 20px;">
+                
+                <h4 style="margin-top: 15px; font-family: 'Segoe UI', sans-serif; color: #0056b3;">Gia hạn / Mở khóa Biên bản (Chung & Bộ phận):</h4>
                 <label style="font-size: 14px;">Hạn chót mới (Xóa trắng để mở khóa vô thời hạn):</label>
                 <div style="display: flex; gap: 10px; margin-top: 5px;">
                     <input type="datetime-local" id="c-deadline-input" style="margin: 0;">
@@ -461,6 +547,22 @@
         let evalPoints = { xs: 10, tot: 8, ht: 5, cht: 0 }; 
         let myChart = null; 
 
+        // State Bảng Động
+        let dynamicTableData = [["STT", "Họ và tên", "Công việc"], ["1", "", ""]]; 
+        let dynamicColWidths = ["10%", "30%", "60%"];
+        let dynamicRowHeights = ["auto", "auto"];
+
+        // State cho Edit Table
+        let currentEditTableData = [];
+        let currentEditColWidths = [];
+        let currentEditRowHeights = [];
+
+        // Global variables cho Drag to Resize
+        let isResizing = false;
+        let currentResizingCol = -1;
+        let startX = 0;
+        let startWidth = 0;
+
         const defaultMembers = [
             { name: "Super Admin", role: "Quản trị viên", subject: "Quản trị hệ thống", task: "Quản trị viên", username: "admin", password: "admin", tasks: [], yearlyEval: "Chưa đánh giá" },
             { name: "Tổ trưởng Văn phòng", role: "Tổ trưởng", subject: "Kế toán", task: "Chủ tọa", username: "totruong_vanphong", password: "123", tasks: [], yearlyEval: "Chưa đánh giá" },
@@ -477,18 +579,11 @@
         db.ref('vanphong/meetings').on('value', snapshot => {
             const data = snapshot.val();
             meetings = data ? (Array.isArray(data) ? data : Object.values(data)) : [];
-            
             if (document.getElementById('main-app').classList.contains('active')) {
                 renderMeetings();
                 if (currentMeetingId && document.getElementById('detail-screen').classList.contains('active')) {
                     const updatedM = meetings.find(x => x.id === currentMeetingId);
-                    if (updatedM) {
-                        if(!updatedM.customHtml) {
-                            renderComments();
-                            document.getElementById('d-conclusion').innerHTML = formatParagraphs(updatedM.conclusion || '......................................................................................................');
-                        }
-                        document.getElementById('c-deadline-input').value = updatedM.deadline || '';
-                    }
+                    if (updatedM && !updatedM.customHtml) viewMeeting(currentMeetingId, true);
                 }
             }
         });
@@ -531,7 +626,10 @@
         function formatParagraphs(text) {
             if (!text) return '';
             let paragraphs = text.split(/\n+/).filter(p => p.trim() !== '');
-            return paragraphs.map(p => `<p>${p}</p>`).join('');
+            return paragraphs.map(p => {
+                if(p.trim() === '[BANG]') return p;
+                return `<p>${p}</p>`;
+            }).join('');
         }
 
         function getBadgeClass(status) {
@@ -547,6 +645,12 @@
             document.getElementById(screenId).classList.add('active');
             if (screenId === 'main-app') { 
                 renderPlans(); renderMeetings(); renderMembers(); renderTaskOverview(); renderStats();
+            }
+            if (screenId === 'create-meeting-screen') {
+                dynamicTableData = [["STT", "Họ và tên", "Công việc"], ["1", "", ""]]; 
+                dynamicColWidths = ["10%", "30%", "60%"]; 
+                dynamicRowHeights = ["auto", "auto"]; 
+                renderDynamicTable();
             }
         }
 
@@ -601,299 +705,27 @@
 
         function logout() { currentUser = { id: '', name: '', role: '', username: '' }; cancelEdit(); cancelEditPlan(); showScreen('login-screen'); }
 
-        // KẾ HOẠCH
-        function renderPlans() {
-            const tbody = document.getElementById('plan-list');
-            tbody.innerHTML = '';
-            
-            if (plans.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#666;">Chưa có kế hoạch nào được tạo.</td></tr>';
-                return;
-            }
-
-            plans.forEach((pl, index) => {
+        // BẢNG ĐỘNG LÚC TẠO
+        function renderDynamicTable() {
+            const tbody = document.getElementById('dynamic-table-body'); tbody.innerHTML = '';
+            if (!dynamicTableData || dynamicTableData.length === 0) return;
+            const trWidth = document.createElement('tr');
+            dynamicColWidths.forEach((w, cIndex) => { const td = document.createElement('td'); td.style.padding = '4px'; td.style.backgroundColor = '#e9ecef'; td.innerHTML = `<input type="text" class="dyn-cell" style="text-align: center; font-size: 12px; color: #555; background: #fff; min-height: 25px; padding: 4px;" placeholder="Rộng (%)" value="${w}" oninput="dynamicColWidths[${cIndex}] = this.value">`; trWidth.appendChild(td); });
+            const tdEmpty = document.createElement('td'); tdEmpty.style.backgroundColor = '#e9ecef'; tdEmpty.style.textAlign = 'center'; tdEmpty.innerHTML = `<small style="color:#555; font-weight: bold;">Cao dòng</small>`; trWidth.appendChild(tdEmpty); tbody.appendChild(trWidth);
+            dynamicTableData.forEach((row, rIndex) => {
                 const tr = document.createElement('tr');
-                let adminCols = '';
-                if (currentUser.role === 'admin') {
-                    adminCols = `
-                        <td class="admin-only-cell" style="text-align: center; vertical-align: middle;">
-                            <button class="btn-warning" style="padding: 4px 8px; margin-bottom: 5px; width: 100%;" onclick="editPlan(${index})">Sửa</button>
-                            <button class="btn-danger" style="padding: 4px 8px; width: 100%;" onclick="deletePlan(${index})">Xóa</button>
-                        </td>
-                    `;
-                }
-                tr.innerHTML = `
-                    <td style="text-align: center; vertical-align: middle;"><b>${index + 1}</b></td>
-                    <td style="text-align: center; vertical-align: middle;"><b>${pl.time}</b></td>
-                    <td><div class="no-indent-text" style="font-size: 14px;">${formatParagraphs(pl.content)}</div></td>
-                    <td><div class="no-indent-text" style="font-size: 14px;">${formatParagraphs(pl.note || '')}</div></td>
-                    ${adminCols}
-                `;
-                tbody.appendChild(tr);
+                row.forEach((cell, cIndex) => { const td = document.createElement('td'); td.style.padding = '0'; td.innerHTML = `<textarea class="dyn-cell" style="${rIndex === 0 ? 'font-weight: bold; text-align: center;' : ''}" oninput="dynamicTableData[${rIndex}][${cIndex}] = this.value">${cell}</textarea>`; tr.appendChild(td); });
+                const tdHeight = document.createElement('td'); tdHeight.style.padding = '4px'; tdHeight.style.backgroundColor = '#f4f6f9'; tdHeight.style.width = '80px'; tdHeight.innerHTML = `<input type="text" class="dyn-cell" style="text-align: center; font-size: 12px; background: #fff; border: 1px solid #ccc; min-height: 25px; padding: 4px;" placeholder="Cao (px)" value="${dynamicRowHeights[rIndex] || 'auto'}" oninput="dynamicRowHeights[${rIndex}] = this.value">`; tr.appendChild(tdHeight); tbody.appendChild(tr);
             });
         }
+        function dynAddRow() { const cols = dynamicTableData[0] ? dynamicTableData[0].length : 3; dynamicTableData.push(new Array(cols).fill("")); dynamicRowHeights.push("auto"); renderDynamicTable(); }
+        function dynRemoveRow() { if(dynamicTableData.length > 1) { dynamicTableData.pop(); dynamicRowHeights.pop(); renderDynamicTable(); } }
+        function dynAddCol() { dynamicTableData.forEach(row => row.push("")); dynamicColWidths.push("auto"); renderDynamicTable(); }
+        function dynRemoveCol() { if(dynamicTableData[0] && dynamicTableData[0].length > 1) { dynamicTableData.forEach(row => row.pop()); dynamicColWidths.pop(); renderDynamicTable(); } }
+        
+        function insertPlaceholder() { const contentArea = document.getElementById('m-content'); const cursorPosition = contentArea.selectionStart; const textBefore = contentArea.value.substring(0, cursorPosition); const textAfter = contentArea.value.substring(cursorPosition); contentArea.value = textBefore + (textBefore.endsWith('\n') || textBefore === '' ? '' : '\n') + "[BANG]\n" + textAfter; contentArea.focus(); }
 
-        function savePlan() {
-            const time = document.getElementById('pl-time').value.trim();
-            const content = document.getElementById('pl-content').value.trim();
-            const note = document.getElementById('pl-note').value.trim();
-
-            if (!time || !content) { alert('Vui lòng nhập Thời gian và Nội dung kế hoạch!'); return; }
-
-            if (editingPlanIndex >= 0) {
-                plans[editingPlanIndex] = { time, content, note };
-            } else {
-                plans.push({ time, content, note });
-            }
-
-            db.ref('vanphong/plans').set(plans).then(() => {
-                cancelEditPlan();
-                alert(editingPlanIndex >= 0 ? "Đã cập nhật kế hoạch!" : "Đã thêm kế hoạch mới!");
-            });
-        }
-
-        function editPlan(index) {
-            editingPlanIndex = index;
-            const pl = plans[index];
-            document.getElementById('pl-time').value = pl.time || '';
-            document.getElementById('pl-content').value = pl.content || '';
-            document.getElementById('pl-note').value = pl.note || '';
-            
-            document.getElementById('form-plan-title').innerText = "Sửa kế hoạch (STT " + (index + 1) + ")";
-            document.getElementById('btn-save-plan').innerText = "Cập nhật";
-            document.getElementById('btn-save-plan').className = "btn-warning";
-            document.getElementById('btn-cancel-edit-plan').style.display = "inline-block";
-            document.getElementById('admin-plan-form').scrollIntoView({ behavior: 'smooth' });
-        }
-
-        function cancelEditPlan() {
-            editingPlanIndex = -1;
-            document.getElementById('pl-time').value = '';
-            document.getElementById('pl-content').value = '';
-            document.getElementById('pl-note').value = '';
-            
-            document.getElementById('form-plan-title').innerText = "+ Thêm Kế hoạch mới";
-            document.getElementById('btn-save-plan').innerText = "Lưu kế hoạch";
-            document.getElementById('btn-save-plan').className = "btn-success";
-            document.getElementById('btn-cancel-edit-plan').style.display = "none";
-        }
-
-        function deletePlan(index) {
-            if (confirm("Chắc chắn xóa kế hoạch này khỏi danh sách?")) {
-                plans.splice(index, 1);
-                db.ref('vanphong/plans').set(plans);
-            }
-        }
-
-        // THÀNH VIÊN - ẨN TÀI KHOẢN ADMIN
-        function renderMembers() {
-            const tbody = document.getElementById('member-list');
-            tbody.innerHTML = '';
-            membersData.forEach((mb, index) => {
-                if (mb.username === 'admin') return;
-
-                const tr = document.createElement('tr');
-                let adminCols = '';
-                if (currentUser.role === 'admin') {
-                    adminCols = `
-                        <td class="admin-only-cell">${mb.username || '<i>Chưa cấp</i>'}</td>
-                        <td class="admin-only-cell">${mb.password || '<i>Chưa cấp</i>'}</td>
-                        <td class="admin-only-cell" style="text-align: center; vertical-align: middle;">
-                            <button class="btn-warning" style="padding: 4px 8px; margin-bottom: 5px; width: 100%;" onclick="editMember(${index})">Sửa</button>
-                            <button class="btn-danger" style="padding: 4px 8px; width: 100%;" onclick="deleteMember(${index})">Xóa</button>
-                        </td>
-                    `;
-                }
-                tr.innerHTML = `<td><b>${mb.name}</b></td><td>${mb.role}</td><td>${mb.subject}</td><td>${mb.task}</td>${adminCols}`;
-                tbody.appendChild(tr);
-            });
-        }
-
-        function saveMember() {
-            const name = document.getElementById('mb-name').value.trim();
-            const role = document.getElementById('mb-role').value.trim();
-            const subject = document.getElementById('mb-subject').value.trim();
-            const task = document.getElementById('mb-task').value.trim();
-            const username = document.getElementById('mb-username').value.trim();
-            const password = document.getElementById('mb-password').value.trim();
-
-            if(!name || !role) { alert('Vui lòng nhập ít nhất Họ tên và Chức vụ!'); return; }
-
-            const isDuplicate = membersData.some((m, idx) => m.username === username && idx !== editingMemberIndex && username !== "");
-            if (isDuplicate) { alert("Tên đăng nhập này đã tồn tại, vui lòng chọn tên khác!"); return; }
-
-            if (editingMemberIndex >= 0) {
-                const oldTasks = membersData[editingMemberIndex].tasks || [];
-                const oldEval = membersData[editingMemberIndex].yearlyEval || 'Chưa đánh giá';
-                membersData[editingMemberIndex] = { name, role, subject, task, username, password, tasks: oldTasks, yearlyEval: oldEval };
-            } else {
-                membersData.push({ name, role, subject, task, username, password, tasks: [], yearlyEval: "Chưa đánh giá" });
-            }
-
-            db.ref('vanphong/members').set(membersData).then(() => {
-                cancelEdit();
-            }).catch(error => {
-                alert("Lỗi khi lưu: " + error.message);
-            });
-        }
-
-        function editMember(index) {
-            editingMemberIndex = index; const mb = membersData[index];
-            document.getElementById('mb-name').value = mb.name || ''; document.getElementById('mb-role').value = mb.role || '';
-            document.getElementById('mb-subject').value = mb.subject || ''; document.getElementById('mb-task').value = mb.task || '';
-            document.getElementById('mb-username').value = mb.username || ''; document.getElementById('mb-password').value = mb.password || '';
-            document.getElementById('form-member-title').innerText = "Sửa tài khoản / Thông tin";
-            document.getElementById('btn-save-member').innerText = "Cập nhật";
-            document.getElementById('btn-save-member').className = "btn-warning";
-            document.getElementById('btn-cancel-edit').style.display = "inline-block";
-            document.getElementById('admin-member-form').scrollIntoView({ behavior: 'smooth' });
-        }
-
-        function cancelEdit() {
-            editingMemberIndex = -1;
-            document.getElementById('mb-name').value = ''; document.getElementById('mb-role').value = '';
-            document.getElementById('mb-subject').value = ''; document.getElementById('mb-task').value = '';
-            document.getElementById('mb-username').value = ''; document.getElementById('mb-password').value = '';
-            document.getElementById('form-member-title').innerText = "+ Thêm/Cấp tài khoản thành viên mới";
-            document.getElementById('btn-save-member').innerText = "Lưu thành viên";
-            document.getElementById('btn-save-member').className = "btn-success";
-            document.getElementById('btn-cancel-edit').style.display = "none";
-        }
-
-        function deleteMember(index) {
-            if (membersData[index].username === 'admin') {
-                alert("Không thể xóa tài khoản Quản trị viên hệ thống!");
-                return;
-            }
-            
-            if (confirm(`Bạn có chắc chắn muốn xóa nhân viên "${membersData[index].name}" khỏi hệ thống?\nLưu ý: Toàn bộ dữ liệu nhiệm vụ và điểm số của nhân viên này cũng sẽ bị xóa!`)) {
-                membersData.splice(index, 1);
-                db.ref('vanphong/members').set(membersData).then(() => {
-                    alert("Đã xóa nhân viên thành công!");
-                    if (editingMemberIndex === index) {
-                        cancelEdit();
-                    }
-                }).catch(error => {
-                    alert("Lỗi khi xóa: " + error.message);
-                });
-            }
-        }
-
-        // NHIỆM VỤ - ẨN TÀI KHOẢN ADMIN
-        function renderTaskOverview() {
-            const tbody = document.getElementById('task-overview-list'); 
-            tbody.innerHTML = '';
-            membersData.forEach((mb, index) => {
-                if (mb.username === 'admin') return;
-
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td><b>${mb.name}</b><br><small style="color:#666">${mb.role}</small></td>
-                    <td style="text-align: center; font-size: 18px; font-weight: bold;">${mb.tasks ? mb.tasks.length : 0}</td>
-                    <td><span class="badge ${getBadgeClass(mb.yearlyEval)}">${mb.yearlyEval || 'Chưa đánh giá'}</span></td>
-                    <td style="text-align: center;"><button class="btn-info" onclick="openTaskDetail(${index})">Chi tiết</button></td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-
-        function openTaskDetail(teacherIndex) {
-            viewingTaskTeacherIndex = teacherIndex;
-            document.getElementById('task-overview').style.display = 'none';
-            document.getElementById('task-detail').style.display = 'block';
-            const mb = membersData[teacherIndex];
-            document.getElementById('td-teacher-name').innerText = mb.name;
-            
-            if (currentUser.role === 'admin') {
-                document.getElementById('td-yearly-eval').value = mb.yearlyEval || 'Chưa đánh giá';
-                document.getElementById('td-yearly-view-only').style.display = 'none';
-            } else {
-                document.getElementById('td-yearly-view-only').innerText = `Xếp loại năm: ${mb.yearlyEval}`;
-                document.getElementById('td-yearly-view-only').style.display = 'block';
-            }
-            renderTeacherTasks();
-        }
-
-        function closeTaskDetail() { viewingTaskTeacherIndex = -1; document.getElementById('task-overview').style.display = 'block'; document.getElementById('task-detail').style.display = 'none'; renderTaskOverview(); }
-
-        function renderTeacherTasks() {
-            const mb = membersData[viewingTaskTeacherIndex];
-            const tbody = document.getElementById('td-task-list'); tbody.innerHTML = '';
-            let counts = { 'Chưa hoàn thành': 0, 'Hoàn thành': 0, 'Hoàn thành tốt': 0, 'Hoàn thành xuất sắc': 0, 'Chưa đánh giá': 0 };
-            
-            if (!mb.tasks || mb.tasks.length === 0) { tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #666;">Chưa có nhiệm vụ.</td></tr>'; } 
-            else {
-                mb.tasks.forEach((t, tIndex) => {
-                    counts[t.status || 'Chưa đánh giá']++;
-                    const isOwnerOrAdmin = (currentUser.username === mb.username) || (currentUser.role === 'admin');
-                    let statusHtml = currentUser.role === 'admin' ? `
-                        <select id="t-status-${tIndex}" style="margin:0; padding:5px;">
-                            <option value="Chưa đánh giá" ${t.status === 'Chưa đánh giá' ? 'selected' : ''}>Chưa đánh giá</option>
-                            <option value="Chưa hoàn thành" ${t.status === 'Chưa hoàn thành' ? 'selected' : ''}>Chưa hoàn thành</option>
-                            <option value="Hoàn thành" ${t.status === 'Hoàn thành' ? 'selected' : ''}>Hoàn thành</option>
-                            <option value="Hoàn thành tốt" ${t.status === 'Hoàn thành tốt' ? 'selected' : ''}>Hoàn thành tốt</option>
-                            <option value="Hoàn thành xuất sắc" ${t.status === 'Hoàn thành xuất sắc' ? 'selected' : ''}>Hoàn thành xuất sắc</option>
-                        </select>
-                    ` : `<span class="badge ${getBadgeClass(t.status)}">${t.status || 'Chưa đánh giá'}</span>`;
-                    
-                    let noteHtml = currentUser.role === 'admin' ? `<textarea id="t-note-${tIndex}" rows="2" placeholder="Ghi chú của Tổ trưởng...">${t.note || ''}</textarea>` : `<div class="format-text" style="font-size: 13px;">${formatParagraphs(t.note || '')}</div>`;
-
-                    let actionHtml = isOwnerOrAdmin ? `<button class="btn-success" style="padding: 5px 10px; margin-bottom: 5px; width: 100%;" onclick="updateTask(${tIndex})">Lưu</button>` : '';
-                    if (currentUser.role === 'admin') actionHtml += `<button class="btn-danger" style="padding: 5px 10px; width: 100%;" onclick="deleteTask(${tIndex})">Xóa</button>`;
-
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td><b>${t.name}</b><br><small style="color:#666">Giao: ${t.date}</small></td>
-                        <td><textarea id="t-result-${tIndex}" rows="2" ${isOwnerOrAdmin ? '' : 'disabled'}>${t.result || ''}</textarea></td>
-                        <td>${statusHtml}</td>
-                        <td>${noteHtml}</td>
-                        <td style="text-align: center; vertical-align: middle;">${actionHtml}</td>
-                    `;
-                    tbody.appendChild(tr);
-                });
-            }
-            document.getElementById('td-statistics').innerHTML = `<b>Tổng: ${mb.tasks ? mb.tasks.length : 0} nhiệm vụ</b> <br><small style="color: #6c757d;">C.Đánh giá: ${counts['Chưa đánh giá']}</small> | <small style="color: #dc3545;">Chưa HT: ${counts['Chưa hoàn thành']}</small> | <small style="color: #007bff;">Hoàn thành: ${counts['Hoàn thành']}</small> | <small style="color: #28a745;">HT Tốt: ${counts['Hoàn thành tốt']}</small> | <small style="color: #ffc107;">HT Xuất sắc: ${counts['Hoàn thành xuất sắc']}</small>`;
-        }
-
-        function assignTask() {
-            const taskName = document.getElementById('new-task-name').value.trim();
-            if (!taskName) return alert("Nhập tên nhiệm vụ!");
-            const now = new Date();
-            
-            if(!membersData[viewingTaskTeacherIndex].tasks) membersData[viewingTaskTeacherIndex].tasks = [];
-            membersData[viewingTaskTeacherIndex].tasks.push({ name: taskName, date: now.getDate() + '/' + (now.getMonth()+1) + '/' + now.getFullYear(), result: "", status: "Chưa đánh giá", note: "" });
-            
-            db.ref('vanphong/members').set(membersData).then(() => {
-                document.getElementById('new-task-name').value = '';
-            });
-        }
-
-        function updateTask(taskIndex) {
-            const mb = membersData[viewingTaskTeacherIndex];
-            if (document.getElementById(`t-result-${taskIndex}`)) mb.tasks[taskIndex].result = document.getElementById(`t-result-${taskIndex}`).value.trim();
-            if (document.getElementById(`t-status-${taskIndex}`)) mb.tasks[taskIndex].status = document.getElementById(`t-status-${taskIndex}`).value;
-            if (document.getElementById(`t-note-${taskIndex}`)) mb.tasks[taskIndex].note = document.getElementById(`t-note-${taskIndex}`).value.trim();
-            
-            db.ref('vanphong/members').set(membersData).then(() => {
-                alert("Đã cập nhật tiến độ lên máy chủ!");
-            });
-        }
-
-        function deleteTask(taskIndex) {
-            if(confirm("Xóa nhiệm vụ này?")) { 
-                membersData[viewingTaskTeacherIndex].tasks.splice(taskIndex, 1); 
-                db.ref('vanphong/members').set(membersData); 
-            }
-        }
-
-        function saveYearlyEval() {
-            membersData[viewingTaskTeacherIndex].yearlyEval = document.getElementById('td-yearly-eval').value;
-            db.ref('vanphong/members').set(membersData).then(() => {
-                alert("Đã chốt xếp loại năm học!");
-            });
-        }
-
-        // CUỘC HỌP
+        // TẠO CUỘC HỌP
         function saveMeeting() {
             const title = document.getElementById('m-title').value.trim();
             const time = document.getElementById('m-time').value;
@@ -909,14 +741,16 @@
                 content: content, 
                 conclusion: "", 
                 host: currentUser.name, 
-                comments: [] 
+                comments: [],
+                dynamicTable: dynamicTableData, 
+                tableConfig: { colWidths: dynamicColWidths, rowHeights: dynamicRowHeights }
             };
             meetings.push(newM);
             
             db.ref('vanphong/meetings').set(meetings).then(() => {
                 document.getElementById('m-title').value = ''; 
                 document.getElementById('m-time').value = ''; 
-                document.getElementById('m-deadline').value = '';
+                document.getElementById('m-deadline').value = ''; 
                 document.getElementById('m-content').value = '';
                 showScreen('main-app');
             });
@@ -934,9 +768,16 @@
             if (meetings.length === 0) return listDiv.innerHTML = '<p>Chưa có cuộc họp nào.</p>';
             [...meetings].reverse().forEach(m => {
                 const div = document.createElement('div'); div.className = 'meeting-item';
-                
                 let commentsArr = m.comments ? (Array.isArray(m.comments) ? m.comments : Object.values(m.comments)) : [];
                 let commentCount = commentsArr.length;
+
+                if(m.subMeetings) {
+                    let subArr = Array.isArray(m.subMeetings) ? m.subMeetings : Object.values(m.subMeetings);
+                    subArr.forEach(sub => {
+                        let subC = sub.comments ? (Array.isArray(sub.comments) ? sub.comments : Object.values(sub.comments)) : [];
+                        commentCount += subC.length;
+                    });
+                }
 
                 let isLocked = false;
                 if (m.deadline) {
@@ -945,319 +786,279 @@
                     if (nowTime > deadlineTime) isLocked = true;
                 }
 
-                let actionButtons = '';
+                let actionBtns = '';
                 if (isLocked && currentUser.role !== 'admin') {
-                    actionButtons = `<button class="btn-disabled" onclick="alert('Biên bản này đã hết hạn nhận xét!')">Đã khóa</button>`;
+                    actionBtns = `<button class="btn-disabled">Đã khóa</button>`;
                 } else {
-                    actionButtons = `<button onclick="viewMeeting(${m.id})">Tham gia / Xem</button>`;
+                    actionBtns = `<button onclick="viewMeeting(${m.id})">Tham gia / Xem</button>`;
                 }
 
-                if (currentUser.role === 'admin') actionButtons += `<button class="btn-danger" style="margin-left: 5px;" onclick="deleteMeeting(${m.id})">Xóa</button>`;
+                if (currentUser.role === 'admin') actionBtns += `<button class="btn-danger" style="margin-left: 5px;" onclick="deleteMeeting(${m.id})">Xóa</button>`;
                 
                 div.innerHTML = `
                     <div style="font-family: 'Segoe UI', sans-serif;">
                         <h4 style="margin: 0 0 5px 0; color: #0056b3;">${m.title} ${isLocked ? '<span style="color: red; font-size:12px;">(Đã khóa)</span>' : ''}</h4>
                         <small>Người tạo: ${m.host} | Số ý kiến: ${commentCount}</small>
                     </div>
-                    <div>${actionButtons}</div>
+                    <div>${actionBtns}</div>
                 `;
                 listDiv.appendChild(div);
             });
         }
 
-        function viewMeeting(id) {
+        // RENDER BẢNG VÀO VIEW
+        function generateDynamicTableHtml(tableData, tableConfig) {
+            if(!tableData || tableData.length === 0 || tableData[0].length === 0) return '';
+            const colW = (tableConfig && tableConfig.colWidths) ? tableConfig.colWidths : [];
+            const rowH = (tableConfig && tableConfig.rowHeights) ? tableConfig.rowHeights : [];
+
+            let html = '<table class="assignment-table"><thead><tr>';
+            tableData[0].forEach((col, cIndex) => { 
+                let w = colW[cIndex] && colW[cIndex] !== 'auto' ? colW[cIndex] : '';
+                let h = rowH[0] && rowH[0] !== 'auto' ? rowH[0] : '';
+                let style = 'position: relative; ';
+                if (w) style += `width: ${w}; `;
+                if (h) style += `height: ${h}; `;
+                
+                let resizerHtml = currentUser.role === 'admin' ? `<div class="col-resizer no-print" onmousedown="initColResize(event, ${cIndex})" title="Kéo để chỉnh độ rộng cột"></div>` : '';
+                html += `<th style="${style}">${col.replace(/\n/g, '<br>')}${resizerHtml}</th>`; 
+            }); 
+            html += '</tr></thead><tbody>';
+            for(let i = 1; i < tableData.length; i++) {
+                let h = rowH[i] && rowH[i] !== 'auto' ? rowH[i] : ''; 
+                html += `<tr style="${h ? `height: ${h};` : ''}">`;
+                tableData[i].forEach((col, cIndex) => { html += `<td style="${cIndex===0?'text-align:center;':''}">${col.replace(/\n/g, '<br>')}</td>`; });
+                html += '</tr>';
+            }
+            html += '</tbody></table>'; 
+            return html;
+        }
+
+        // DRAG TO RESIZE LOGIC
+        function initColResize(e, colIndex) {
+            e.preventDefault(); 
+            isResizing = true; currentResizingCol = colIndex; startX = e.clientX;
+            const th = e.target.closest('th'); startWidth = th.offsetWidth;
+            document.addEventListener('mousemove', handleColMouseMove); document.addEventListener('mouseup', handleColMouseUp);
+            document.body.style.cursor = 'col-resize';
+        }
+        function handleColMouseMove(e) {
+            if (!isResizing) return;
+            const dx = e.clientX - startX; const newWidth = Math.max(30, startWidth + dx);
+            const table = document.querySelector('#print-area .assignment-table');
+            if(table) { const th = table.querySelectorAll('th')[currentResizingCol]; if(th) th.style.width = newWidth + 'px'; }
+        }
+        function handleColMouseUp(e) {
+            if (!isResizing) return;
+            isResizing = false;
+            document.removeEventListener('mousemove', handleColMouseMove); document.removeEventListener('mouseup', handleColMouseUp);
+            document.body.style.cursor = 'default';
+            
+            const dx = e.clientX - startX; const newWidth = Math.max(30, startWidth + dx);
+            const mIndex = meetings.findIndex(x => x.id === currentMeetingId);
+            if (mIndex !== -1) {
+                if(!meetings[mIndex].tableConfig) meetings[mIndex].tableConfig = { colWidths: [], rowHeights: [] };
+                if(!meetings[mIndex].tableConfig.colWidths) meetings[mIndex].tableConfig.colWidths = [];
+                meetings[mIndex].tableConfig.colWidths[currentResizingCol] = newWidth + 'px';
+                db.ref('vanphong/meetings').set(meetings);
+            }
+        }
+
+        // EDIT TABLE LÚC VIEW
+        function initEditTable(m) {
+            const section = document.getElementById('edit-table-section');
+            if (currentUser.role !== 'admin') return;
+            if (!m.dynamicTable || m.dynamicTable.length === 0) { section.style.display = 'none'; return; }
+            section.style.display = 'block';
+            currentEditTableData = JSON.parse(JSON.stringify(m.dynamicTable));
+            currentEditColWidths = m.tableConfig?.colWidths ? [...m.tableConfig.colWidths] : new Array(currentEditTableData[0].length).fill('auto');
+            currentEditRowHeights = m.tableConfig?.rowHeights ? [...m.tableConfig.rowHeights] : new Array(currentEditTableData.length).fill('auto');
+            renderEditDynamicTable();
+        }
+
+        function renderEditDynamicTable() {
+            const tbody = document.getElementById('edit-dynamic-table-body'); tbody.innerHTML = '';
+            if (currentEditTableData.length === 0) return;
+            
+            const trWidth = document.createElement('tr');
+            currentEditColWidths.forEach((w, cIndex) => {
+                const td = document.createElement('td'); td.style.padding = '4px'; td.style.backgroundColor = '#e9ecef';
+                td.innerHTML = `<input type="text" class="dyn-cell" style="text-align: center; font-size: 12px; color: #555; background: #fff; min-height: 25px; padding: 4px;" placeholder="Rộng (%)" value="${w}" oninput="currentEditColWidths[${cIndex}] = this.value">`;
+                trWidth.appendChild(td);
+            });
+            const tdEmpty = document.createElement('td'); tdEmpty.style.backgroundColor = '#e9ecef'; tdEmpty.style.textAlign = 'center'; tdEmpty.innerHTML = `<small style="color:#555; font-weight: bold;">Cao dòng</small>`; trWidth.appendChild(tdEmpty); tbody.appendChild(trWidth);
+
+            currentEditTableData.forEach((row, rIndex) => {
+                const tr = document.createElement('tr');
+                row.forEach((cell, cIndex) => {
+                    const td = document.createElement('td'); td.style.padding = '0';
+                    td.innerHTML = `<textarea class="dyn-cell" style="${rIndex === 0 ? 'font-weight: bold; text-align: center;' : ''}" oninput="currentEditTableData[${rIndex}][${cIndex}] = this.value">${cell}</textarea>`; tr.appendChild(td);
+                });
+                const tdHeight = document.createElement('td'); tdHeight.style.padding = '4px'; tdHeight.style.backgroundColor = '#f4f6f9'; tdHeight.style.width = '80px';
+                tdHeight.innerHTML = `<input type="text" class="dyn-cell" style="text-align: center; font-size: 12px; background: #fff; border: 1px solid #ccc; min-height: 25px; padding: 4px;" placeholder="Cao (px)" value="${currentEditRowHeights[rIndex] || 'auto'}" oninput="currentEditRowHeights[${rIndex}] = this.value">`; tr.appendChild(tdHeight); tbody.appendChild(tr);
+            });
+        }
+        function editDynAddRow() { const cols = currentEditTableData[0] ? currentEditTableData[0].length : 3; currentEditTableData.push(new Array(cols).fill("")); currentEditRowHeights.push("auto"); renderEditDynamicTable(); }
+        function editDynRemoveRow() { if(currentEditTableData.length > 1) { currentEditTableData.pop(); currentEditRowHeights.pop(); renderEditDynamicTable(); } }
+        function editDynAddCol() { currentEditTableData.forEach(row => row.push("")); currentEditColWidths.push("auto"); renderEditDynamicTable(); }
+        function editDynRemoveCol() { if(currentEditTableData[0] && currentEditTableData[0].length > 1) { currentEditTableData.forEach(row => row.pop()); currentEditColWidths.pop(); renderEditDynamicTable(); } }
+        
+        function saveEditedTable() {
+            const mIndex = meetings.findIndex(x => x.id === currentMeetingId);
+            if (mIndex !== -1) {
+                meetings[mIndex].dynamicTable = currentEditTableData;
+                meetings[mIndex].tableConfig = { colWidths: currentEditColWidths, rowHeights: currentEditRowHeights };
+                db.ref('vanphong/meetings').set(meetings).then(() => { alert('Đã cập nhật Bảng thành công!'); });
+            }
+        }
+
+        function generateCommentsHtml(rawComments) { let commentsArr = rawComments ? (Array.isArray(rawComments) ? rawComments : Object.values(rawComments)) : []; if (commentsArr.length === 0) return '<p><i>Chưa có ý kiến thảo luận nào.</i></p>'; let grouped = []; commentsArr.forEach(c => { let existing = grouped.find(g => g.user === c.user); if (existing) existing.texts.push(c.text); else grouped.push({ user: c.user, texts: [c.text] }); }); let html = ''; grouped.forEach((g, i) => { html += `<div class="comment-box"><div class="comment-meta"><span style="font-weight: bold;">${i + 1}. </span><span style="font-style: italic;">${g.user}:</span></div><div class="format-text">${formatParagraphs(g.texts.join('\n\n'))}</div></div>`; }); return html; }
+
+        function viewMeeting(id, isRefresh = false) {
             currentMeetingId = id; const m = meetings.find(x => x.id === id);
-            document.getElementById('print-area').innerHTML = printAreaTemplate;
             
-            if (m.customHtml) {
-                document.getElementById('print-area').innerHTML = m.customHtml;
-                if (currentUser.role === 'admin') {
-                    document.getElementById('btn-restore-print').style.display = 'inline-block';
+            if(!isRefresh) {
+                document.getElementById('print-area').innerHTML = printAreaTemplate; 
+                if (m.customHtml) {
+                    document.getElementById('print-area').innerHTML = m.customHtml;
+                    if (currentUser.role === 'admin') document.getElementById('btn-restore-print').style.display = 'inline-block';
+                    document.getElementById('c-deadline-input').value = m.deadline || '';
+                    populateInteractionTargets(m); loadTargetConclusion();
+                    showScreen('detail-screen'); return;
                 }
-                document.getElementById('c-conclusion-text').value = m.conclusion || '';
-                document.getElementById('c-deadline-input').value = m.deadline || '';
-                showScreen('detail-screen');
-                return;
+                document.getElementById('btn-restore-print').style.display = 'none';
             }
-            
-            document.getElementById('btn-restore-print').style.display = 'none';
+
             document.getElementById('d-title').innerText = m.title;
-            
             let displayTime = m.time || 'Chưa xác định';
-            if (m.time) {
-                try {
-                    const dateObj = new Date(m.time.replace(' ', 'T'));
-                    if (!isNaN(dateObj.getTime())) {
-                        displayTime = `${dateObj.getDate()}/${dateObj.getMonth() + 1}/${dateObj.getFullYear()}`;
-                    }
-                } catch (e) {}
-            }
+            if (m.time) { try { const d = new Date(m.time.replace(' ', 'T')); if (!isNaN(d.getTime())) { displayTime = `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`; document.getElementById('d-date-location').innerText = `ngày ${d.getDate().toString().padStart(2,'0')} tháng ${(d.getMonth()+1).toString().padStart(2,'0')} năm ${d.getFullYear()}`; } } catch(e){} }
             document.getElementById('d-time').innerText = displayTime;
             
             const toTruong = membersData.find(mb => mb.role && mb.role.toLowerCase().includes('tổ trưởng') && mb.username !== 'admin');
             const hostName = toTruong ? toTruong.name : (m.host || '.........................');
-            
             document.getElementById('d-host').innerText = hostName;
-            document.getElementById('d-content').innerHTML = formatParagraphs(m.content);
             
-            if (m.time) {
-                try {
-                    const dateObj = new Date(m.time.replace(' ', 'T'));
-                    if (!isNaN(dateObj.getTime())) {
-                        document.getElementById('d-date-location').innerText = `ngày ${dateObj.getDate().toString().padStart(2, '0')} tháng ${(dateObj.getMonth() + 1).toString().padStart(2, '0')} năm ${dateObj.getFullYear()}`;
-                    }
-                } catch (e) {}
+            let contentHtml = formatParagraphs(m.content);
+            if (m.dynamicTable && m.dynamicTable.length > 0) {
+                const tableHtml = generateDynamicTableHtml(m.dynamicTable, m.tableConfig);
+                if (contentHtml.includes('[BANG]')) {
+                    contentHtml = contentHtml.replace('[BANG]', tableHtml);
+                } else {
+                    contentHtml += tableHtml;
+                }
+            } else {
+                contentHtml = contentHtml.replace('[BANG]', ''); 
+            }
+            document.getElementById('d-content').innerHTML = contentHtml;
+            
+            document.getElementById('d-host-name').innerText = hostName;
+            const sec = membersData.find(mb => mb.username !== 'admin' && ((mb.role||'').toLowerCase().includes('thư k') || (mb.task||'').toLowerCase().includes('thư k')));
+            document.getElementById('d-secretary-name').innerText = sec ? sec.name : '.........................';
+            document.getElementById('d-conclusion').innerHTML = formatParagraphs(m.conclusion || '......................................................................................................');
+            document.getElementById('d-comments').innerHTML = generateCommentsHtml(m.comments);
+
+            const subContainer = document.getElementById('d-sub-meetings-container');
+            subContainer.innerHTML = '';
+            if(m.subMeetings) {
+                let subArr = Array.isArray(m.subMeetings) ? m.subMeetings : Object.values(m.subMeetings);
+                subArr.forEach((sub, index) => {
+                    let subHtml = `
+                        <div class="page-break"></div>
+                        <div class="sub-meeting-section">
+                            <h2>BIÊN BẢN HỌP BỘ PHẬN</h2>
+                            <h3 style="text-transform: uppercase;">${sub.title}</h3>
+                            <div class="format-text"><p style="text-indent: 0;"><b>Thời gian: </b> Theo thời gian họp tổ</p><p style="text-indent: 0;"><b>Chủ tọa (Phụ trách bộ phận): </b> ${sub.host}</p></div>
+                            <h4>I. NỘI DUNG TRIỂN KHAI</h4>
+                            <div class="format-text">${formatParagraphs(sub.content)}</div>
+                            <h4>II. Ý KIẾN THẢO LUẬN</h4>
+                            <div>${generateCommentsHtml(sub.comments)}</div>
+                            <h4>III. KẾT LUẬN</h4>
+                            <div class="format-text">${formatParagraphs(sub.conclusion || '......................................................................................................')}</div>
+                            <div class="format-text"><p><b>* Nội dung được 100% các thành viên nhóm nhất trí.</b></p></div>
+                            <div class="print-header screen" style="width: 100%; margin-top: 40px; overflow: hidden; display: block;">
+                                <div style="float: right; width: 50%; text-align: center;"><p style="font-weight: bold; margin: 0;">CHỦ TỌA</p><p style="height: 80px;"></p><p style="font-weight: bold; margin: 0;">${sub.host}</p></div>
+                            </div>
+                        </div>
+                    `;
+                    subContainer.innerHTML += subHtml;
+                });
             }
 
-            document.getElementById('d-host-name').innerText = hostName;
-            const secretary = membersData.find(mb => {
-                if (mb.username === 'admin') return false; 
-                const r = (mb.role || '').toLowerCase(); const t = (mb.task || '').toLowerCase();
-                return r.includes('thư ký') || r.includes('thư kí') || t.includes('thư ký') || t.includes('thư kí');
-            });
-            document.getElementById('d-secretary-name').innerText = secretary ? secretary.name : '.........................';
-            
-            document.getElementById('d-conclusion').innerHTML = formatParagraphs(m.conclusion || '......................................................................................................');
-            document.getElementById('c-conclusion-text').value = m.conclusion || '';
+            populateInteractionTargets(m); loadTargetConclusion(); initEditTable(m);
             document.getElementById('c-deadline-input').value = m.deadline || '';
-
-            document.getElementById('print-header-info').style.display = 'block';
-            document.getElementById('print-footer-info').style.display = 'block';
-            renderComments(); 
-            showScreen('detail-screen');
-        }
-
-        function updateDeadline() {
-            const newDeadline = document.getElementById('c-deadline-input').value;
-            const mIndex = meetings.findIndex(x => x.id === currentMeetingId);
-            meetings[mIndex].deadline = newDeadline;
-            db.ref('vanphong/meetings').set(meetings).then(() => {
-                alert("Đã cập nhật hạn chót nhận xét!");
-            });
-        }
-
-        function saveConclusion() {
-            const text = document.getElementById('c-conclusion-text').value.trim();
-            const mIndex = meetings.findIndex(x => x.id === currentMeetingId);
-            meetings[mIndex].conclusion = text;
+            document.getElementById('print-header-info').style.display = 'block'; document.getElementById('print-footer-info').style.display = 'block';
             
-            db.ref('vanphong/meetings').set(meetings).then(() => {
-                alert("Đã lưu Kết luận cuộc họp thành công!");
-                if(!meetings[mIndex].customHtml) {
-                    document.getElementById('d-conclusion').innerHTML = formatParagraphs(text);
-                }
-            });
+            if (currentUser.role === 'admin') {
+                const hostSelect = document.getElementById('sub-host'); hostSelect.innerHTML = '<option value="">-- Chọn Nhóm trưởng --</option>';
+                membersData.forEach(mb => { if(mb.username !== 'admin') hostSelect.innerHTML += `<option value="${mb.name}">${mb.name}</option>`; });
+            }
+            if(!isRefresh) showScreen('detail-screen');
+        }
+
+        function populateInteractionTargets(m) { const t1 = document.getElementById('c-target'); const t2 = document.getElementById('c-conclusion-target'); let val1 = t1.value; let val2 = t2.value; let opts = '<option value="main">Cuộc họp chung</option>'; if(m.subMeetings) { let subArr = Array.isArray(m.subMeetings) ? m.subMeetings : Object.values(m.subMeetings); subArr.forEach((sub, i) => { opts += `<option value="${i}">Biên bản: ${sub.title}</option>`; }); } t1.innerHTML = opts; t2.innerHTML = opts; if([...t1.options].some(o => o.value === val1)) t1.value = val1; if([...t2.options].some(o => o.value === val2)) t2.value = val2; }
+        function loadTargetConclusion() { if(currentUser.role !== 'admin') return; const target = document.getElementById('c-conclusion-target').value; const m = meetings.find(x => x.id === currentMeetingId); if(target === 'main') { document.getElementById('c-conclusion-text').value = m.conclusion || ''; } else { let subArr = Array.isArray(m.subMeetings) ? m.subMeetings : Object.values(m.subMeetings); document.getElementById('c-conclusion-text').value = subArr[target].conclusion || ''; } }
+        
+        function createSubMeeting() {
+            const title = document.getElementById('sub-title').value.trim(); const host = document.getElementById('sub-host').value; const content = document.getElementById('sub-content').value.trim();
+            if(!title || !host || !content) return alert("Vui lòng nhập Tên bộ phận, chọn Nhóm trưởng và nhập nội dung!");
+            const mIndex = meetings.findIndex(x => x.id === currentMeetingId);
+            if(!meetings[mIndex].subMeetings) meetings[mIndex].subMeetings = [];
+            let subArr = Array.isArray(meetings[mIndex].subMeetings) ? meetings[mIndex].subMeetings : Object.values(meetings[mIndex].subMeetings);
+            subArr.push({ title: title, host: host, content: content, conclusion: "", comments: [] }); meetings[mIndex].subMeetings = subArr;
+            db.ref('vanphong/meetings').set(meetings).then(() => { alert("Đã tạo biên bản họp bộ phận!"); document.getElementById('sub-title').value = ''; document.getElementById('sub-content').value = ''; });
+        }
+
+        function updateDeadline() { const newDeadline = document.getElementById('c-deadline-input').value; const mIndex = meetings.findIndex(x => x.id === currentMeetingId); meetings[mIndex].deadline = newDeadline; db.ref('vanphong/meetings').set(meetings).then(() => { alert("Đã cập nhật hạn!"); }); }
+        
+        function saveConclusion() {
+            const text = document.getElementById('c-conclusion-text').value.trim(); const target = document.getElementById('c-conclusion-target').value;
+            const mIndex = meetings.findIndex(x => x.id === currentMeetingId);
+            if(target === 'main') { meetings[mIndex].conclusion = text; } 
+            else { let subArr = Array.isArray(meetings[mIndex].subMeetings) ? meetings[mIndex].subMeetings : Object.values(meetings[mIndex].subMeetings); subArr[target].conclusion = text; meetings[mIndex].subMeetings = subArr; }
+            db.ref('vanphong/meetings').set(meetings).then(() => { alert("Đã lưu Kết luận thành công!"); });
         }
 
         function addComment() {
-            const text = document.getElementById('c-text').value.trim();
-            if (!text) return alert('Vui lòng nhập ý kiến!');
-            const mIndex = meetings.findIndex(x => x.id === currentMeetingId);
-            
-            if(!meetings[mIndex].comments) meetings[mIndex].comments = [];
-            if(!Array.isArray(meetings[mIndex].comments)) {
-                meetings[mIndex].comments = Object.values(meetings[mIndex].comments);
-            }
-
-            meetings[mIndex].comments.push({ user: currentUser.name, text: text }); 
-            
-            db.ref('vanphong/meetings').set(meetings).then(() => {
-                document.getElementById('c-text').value = '';
-            });
-        }
-
-        function renderComments() {
-            const m = meetings.find(x => x.id === currentMeetingId);
-            const cDiv = document.getElementById('d-comments');
-            cDiv.innerHTML = '';
-            
-            let rawComments = m.comments ? (Array.isArray(m.comments) ? m.comments : Object.values(m.comments)) : [];
-
-            if (rawComments.length === 0) {
-                cDiv.innerHTML = '<p><i>Chưa có ý kiến thảo luận nào.</i></p>';
+            const text = document.getElementById('c-text').value.trim(); if (!text) return alert('Vui lòng nhập ý kiến!');
+            const target = document.getElementById('c-target').value; const mIndex = meetings.findIndex(x => x.id === currentMeetingId);
+            if (target === 'main') {
+                if(!meetings[mIndex].comments) meetings[mIndex].comments = [];
+                let cArr = Array.isArray(meetings[mIndex].comments) ? meetings[mIndex].comments : Object.values(meetings[mIndex].comments); cArr.push({ user: currentUser.name, text: text }); meetings[mIndex].comments = cArr;
             } else {
-                const grouped = [];
-                rawComments.forEach(c => {
-                    const existing = grouped.find(g => g.user === c.user);
-                    if (existing) {
-                        existing.texts.push(c.text);
-                    } else {
-                        grouped.push({
-                            user: c.user,
-                            texts: [c.text]
-                        });
-                    }
-                });
-
-                grouped.forEach((g, index) => {
-                    const div = document.createElement('div');
-                    div.className = 'comment-box';
-                    const combinedText = g.texts.join('\n\n'); 
-                    div.innerHTML = `
-                        <div class="comment-meta">
-                            <span style="font-weight: bold;">${index + 1}. </span>
-                            <span style="font-style: italic;">${g.user}:</span> 
-                        </div>
-                        <div class="format-text">${formatParagraphs(combinedText)}</div>
-                    `;
-                    cDiv.appendChild(div);
-                });
+                let subArr = Array.isArray(meetings[mIndex].subMeetings) ? meetings[mIndex].subMeetings : Object.values(meetings[mIndex].subMeetings);
+                if(!subArr[target].comments) subArr[target].comments = []; let cArr = Array.isArray(subArr[target].comments) ? subArr[target].comments : Object.values(subArr[target].comments);
+                cArr.push({ user: currentUser.name, text: text }); subArr[target].comments = cArr; meetings[mIndex].subMeetings = subArr;
             }
+            db.ref('vanphong/meetings').set(meetings).then(() => { document.getElementById('c-text').value = ''; });
         }
 
-        // THỐNG KÊ - ẨN TÀI KHOẢN ADMIN
-        function enableEditPoints() {
-            document.getElementById('pt-xs').disabled = false;
-            document.getElementById('pt-tot').disabled = false;
-            document.getElementById('pt-ht').disabled = false;
-            document.getElementById('pt-cht').disabled = false;
-            document.getElementById('btn-edit-points').style.display = 'none';
-            document.getElementById('btn-save-points').style.display = 'inline-block';
-        }
+        function renderPlans() { const tbody = document.getElementById('plan-list'); tbody.innerHTML = ''; if (plans.length === 0) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#666;">Chưa có kế hoạch</td></tr>'; return; } plans.forEach((pl, index) => { const tr = document.createElement('tr'); let adminCols = (currentUser.role === 'admin') ? `<td class="admin-only-cell" style="text-align: center;"><button class="btn-warning" style="width:100%; margin-bottom:5px;" onclick="editPlan(${index})">Sửa</button><button class="btn-danger" style="width:100%;" onclick="deletePlan(${index})">Xóa</button></td>` : ''; tr.innerHTML = `<td style="text-align: center;"><b>${index + 1}</b></td><td style="text-align: center;"><b>${pl.time}</b></td><td><div class="no-indent-text">${formatParagraphs(pl.content)}</div></td><td><div class="no-indent-text">${formatParagraphs(pl.note || '')}</div></td>${adminCols}`; tbody.appendChild(tr); }); }
+        function savePlan() { const time = document.getElementById('pl-time').value.trim(); const content = document.getElementById('pl-content').value.trim(); const note = document.getElementById('pl-note').value.trim(); if (!time || !content) { alert('Vui lòng nhập Thời gian và Nội dung!'); return; } if (editingPlanIndex >= 0) plans[editingPlanIndex] = { time, content, note }; else plans.push({ time, content, note }); db.ref('vanphong/plans').set(plans).then(() => { cancelEditPlan(); alert(editingPlanIndex >= 0 ? "Đã cập nhật!" : "Đã thêm mới!"); }); }
+        function editPlan(index) { editingPlanIndex = index; const pl = plans[index]; document.getElementById('pl-time').value = pl.time || ''; document.getElementById('pl-content').value = pl.content || ''; document.getElementById('pl-note').value = pl.note || ''; document.getElementById('form-plan-title').innerText = "Sửa kế hoạch (STT " + (index + 1) + ")"; document.getElementById('btn-save-plan').innerText = "Cập nhật"; document.getElementById('btn-save-plan').className = "btn-warning"; document.getElementById('btn-cancel-edit-plan').style.display = "inline-block"; document.getElementById('admin-plan-form').scrollIntoView({ behavior: 'smooth' }); }
+        function cancelEditPlan() { editingPlanIndex = -1; document.getElementById('pl-time').value = ''; document.getElementById('pl-content').value = ''; document.getElementById('pl-note').value = ''; document.getElementById('form-plan-title').innerText = "+ Thêm Kế hoạch mới"; document.getElementById('btn-save-plan').innerText = "Lưu kế hoạch"; document.getElementById('btn-save-plan').className = "btn-success"; document.getElementById('btn-cancel-edit-plan').style.display = "none"; }
+        function deletePlan(index) { if (confirm("Xóa kế hoạch này?")) { plans.splice(index, 1); db.ref('vanphong/plans').set(plans); } }
 
-        function savePoints() {
-            const xs = parseFloat(document.getElementById('pt-xs').value) || 0;
-            const tot = parseFloat(document.getElementById('pt-tot').value) || 0;
-            const ht = parseFloat(document.getElementById('pt-ht').value) || 0;
-            const cht = parseFloat(document.getElementById('pt-cht').value) || 0;
-            
-            db.ref('vanphong/settings/points').set({ xs, tot, ht, cht }).then(() => {
-                document.getElementById('pt-xs').disabled = true;
-                document.getElementById('pt-tot').disabled = true;
-                document.getElementById('pt-ht').disabled = true;
-                document.getElementById('pt-cht').disabled = true;
-                document.getElementById('btn-edit-points').style.display = 'inline-block';
-                document.getElementById('btn-save-points').style.display = 'none';
-                alert("Đã cập nhật quy tắc tính điểm!");
-            });
-        }
+        function renderMembers() { const tbody = document.getElementById('member-list'); tbody.innerHTML = ''; membersData.forEach((mb, index) => { if (currentUser.username !== 'admin' && mb.username === 'admin') return; const tr = document.createElement('tr'); let adminCols = (currentUser.role === 'admin') ? `<td class="admin-only-cell">${mb.username||''}</td><td class="admin-only-cell">${mb.password||''}</td><td class="admin-only-cell" style="text-align: center;"><button class="btn-warning" style="width:100%; margin-bottom:5px;" onclick="editMember(${index})">Sửa</button><button class="btn-danger" style="width:100%;" onclick="deleteMember(${index})">Xóa</button></td>` : ''; tr.innerHTML = `<td><b>${mb.name}</b></td><td>${mb.role}</td><td>${mb.subject}</td><td>${mb.task}</td>${adminCols}`; tbody.appendChild(tr); }); }
+        function saveMember() { const name = document.getElementById('mb-name').value.trim(); const role = document.getElementById('mb-role').value.trim(); const subject = document.getElementById('mb-subject').value.trim(); const task = document.getElementById('mb-task').value.trim(); const username = document.getElementById('mb-username').value.trim(); const password = document.getElementById('mb-password').value.trim(); if(!name || !role) return alert('Nhập ít nhất Họ tên và Chức vụ!'); if (membersData.some((m, idx) => m.username === username && idx !== editingMemberIndex && username !== "")) return alert("Tên đăng nhập đã tồn tại!"); if (editingMemberIndex >= 0) { membersData[editingMemberIndex] = { ...membersData[editingMemberIndex], name, role, subject, task, username, password }; } else { membersData.push({ name, role, subject, task, username, password, tasks: [], yearlyEval: "Chưa đánh giá" }); } db.ref('vanphong/members').set(membersData).then(() => { cancelEdit(); }); }
+        function editMember(index) { editingMemberIndex = index; const mb = membersData[index]; document.getElementById('mb-name').value = mb.name || ''; document.getElementById('mb-role').value = mb.role || ''; document.getElementById('mb-subject').value = mb.subject || ''; document.getElementById('mb-task').value = mb.task || ''; document.getElementById('mb-username').value = mb.username || ''; document.getElementById('mb-password').value = mb.password || ''; document.getElementById('form-member-title').innerText = "Sửa tài khoản"; document.getElementById('btn-save-member').innerText = "Cập nhật"; document.getElementById('btn-save-member').className = "btn-warning"; document.getElementById('btn-cancel-edit').style.display = "inline-block"; document.getElementById('admin-member-form').scrollIntoView({ behavior: 'smooth' }); }
+        function cancelEdit() { editingMemberIndex = -1; document.getElementById('mb-name').value = ''; document.getElementById('mb-role').value = ''; document.getElementById('mb-subject').value = ''; document.getElementById('mb-task').value = ''; document.getElementById('mb-username').value = ''; document.getElementById('mb-password').value = ''; document.getElementById('form-member-title').innerText = "+ Thêm tài khoản mới"; document.getElementById('btn-save-member').innerText = "Lưu thành viên"; document.getElementById('btn-save-member').className = "btn-success"; document.getElementById('btn-cancel-edit').style.display = "none"; }
+        function deleteMember(index) { if (membersData[index].username === 'admin') return alert("Không thể xóa Quản trị viên!"); if (confirm("Xóa thành viên này?")) { membersData.splice(index, 1); db.ref('vanphong/members').set(membersData); } }
 
-        function renderStats() {
-            const tbody = document.getElementById('stats-table-list');
-            tbody.innerHTML = '';
-            
-            document.getElementById('pt-xs').value = evalPoints.xs;
-            document.getElementById('pt-tot').value = evalPoints.tot;
-            document.getElementById('pt-ht').value = evalPoints.ht;
-            document.getElementById('pt-cht').value = evalPoints.cht;
+        function renderTaskOverview() { const tbody = document.getElementById('task-overview-list'); tbody.innerHTML = ''; membersData.forEach((mb, index) => { if (currentUser.username !== 'admin' && mb.username === 'admin') return; const tr = document.createElement('tr'); tr.innerHTML = `<td><b>${mb.name}</b><br><small style="color:#666">${mb.role}</small></td><td style="text-align: center; font-size: 18px; font-weight: bold;">${mb.tasks ? mb.tasks.length : 0}</td><td><span class="badge ${getBadgeClass(mb.yearlyEval)}">${mb.yearlyEval || 'Chưa đánh giá'}</span></td><td style="text-align: center;"><button class="btn-info" onclick="openTaskDetail(${index})">Chi tiết</button></td>`; tbody.appendChild(tr); }); }
+        function openTaskDetail(teacherIndex) { viewingTaskTeacherIndex = teacherIndex; document.getElementById('task-overview').style.display = 'none'; document.getElementById('task-detail').style.display = 'block'; const mb = membersData[teacherIndex]; document.getElementById('td-teacher-name').innerText = mb.name; if (currentUser.role === 'admin') { document.getElementById('td-yearly-eval').value = mb.yearlyEval || 'Chưa đánh giá'; document.getElementById('td-yearly-view-only').style.display = 'none'; } else { document.getElementById('td-yearly-view-only').innerText = `Xếp loại năm: ${mb.yearlyEval}`; document.getElementById('td-yearly-view-only').style.display = 'block'; } renderTeacherTasks(); }
+        function closeTaskDetail() { viewingTaskTeacherIndex = -1; document.getElementById('task-overview').style.display = 'block'; document.getElementById('task-detail').style.display = 'none'; renderTaskOverview(); }
+        function renderTeacherTasks() { const mb = membersData[viewingTaskTeacherIndex]; const tbody = document.getElementById('td-task-list'); tbody.innerHTML = ''; let counts = { 'Chưa hoàn thành': 0, 'Hoàn thành': 0, 'Hoàn thành tốt': 0, 'Hoàn thành xuất sắc': 0, 'Chưa đánh giá': 0 }; if (!mb.tasks || mb.tasks.length === 0) { tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #666;">Chưa có nhiệm vụ.</td></tr>'; } else { mb.tasks.forEach((t, i) => { counts[t.status || 'Chưa đánh giá']++; const isOwnerOrAdmin = (currentUser.username === mb.username) || (currentUser.role === 'admin'); let statusHtml = currentUser.role === 'admin' ? `<select id="t-status-${i}" style="margin:0; padding:5px;"><option value="Chưa đánh giá" ${t.status === 'Chưa đánh giá' ? 'selected' : ''}>Chưa đánh giá</option><option value="Chưa hoàn thành" ${t.status === 'Chưa hoàn thành' ? 'selected' : ''}>Chưa hoàn thành</option><option value="Hoàn thành" ${t.status === 'Hoàn thành' ? 'selected' : ''}>Hoàn thành</option><option value="Hoàn thành tốt" ${t.status === 'Hoàn thành tốt' ? 'selected' : ''}>Hoàn thành tốt</option><option value="Hoàn thành xuất sắc" ${t.status === 'Hoàn thành xuất sắc' ? 'selected' : ''}>Hoàn thành xuất sắc</option></select>` : `<span class="badge ${getBadgeClass(t.status)}">${t.status || 'Chưa đánh giá'}</span>`; let noteHtml = currentUser.role === 'admin' ? `<textarea id="t-note-${i}" rows="2">${t.note || ''}</textarea>` : `<div class="format-text" style="font-size: 13px;">${formatParagraphs(t.note || '')}</div>`; let actionHtml = isOwnerOrAdmin ? `<button class="btn-success" style="width: 100%; margin-bottom: 5px;" onclick="updateTask(${i})">Lưu</button>` : ''; if (currentUser.role === 'admin') actionHtml += `<button class="btn-danger" style="width: 100%;" onclick="deleteTask(${i})">Xóa</button>`; const tr = document.createElement('tr'); tr.innerHTML = `<td><b>${t.name}</b><br><small style="color:#666">Giao: ${t.date}</small></td><td><textarea id="t-result-${i}" rows="2" ${isOwnerOrAdmin ? '' : 'disabled'}>${t.result || ''}</textarea></td><td>${statusHtml}</td><td>${noteHtml}</td><td style="text-align: center;">${actionHtml}</td>`; tbody.appendChild(tr); }); } document.getElementById('td-statistics').innerHTML = `<b>Tổng: ${mb.tasks ? mb.tasks.length : 0} nhiệm vụ</b> <br><small>C.Đánh giá: ${counts['Chưa đánh giá']} | Chưa HT: ${counts['Chưa hoàn thành']} | Hoàn thành: ${counts['Hoàn thành']} | HT Tốt: ${counts['Hoàn thành tốt']} | HT Xuất sắc: ${counts['Hoàn thành xuất sắc']}</small>`; }
+        function assignTask() { const taskName = document.getElementById('new-task-name').value.trim(); if (!taskName) return alert("Nhập tên nhiệm vụ!"); const now = new Date(); if(!membersData[viewingTaskTeacherIndex].tasks) membersData[viewingTaskTeacherIndex].tasks = []; membersData[viewingTaskTeacherIndex].tasks.push({ name: taskName, date: now.getDate() + '/' + (now.getMonth()+1) + '/' + now.getFullYear(), result: "", status: "Chưa đánh giá", note: "" }); db.ref('vanphong/members').set(membersData).then(() => { document.getElementById('new-task-name').value = ''; }); }
+        function updateTask(i) { const mb = membersData[viewingTaskTeacherIndex]; if (document.getElementById(`t-result-${i}`)) mb.tasks[i].result = document.getElementById(`t-result-${i}`).value.trim(); if (document.getElementById(`t-status-${i}`)) mb.tasks[i].status = document.getElementById(`t-status-${i}`).value; if (document.getElementById(`t-note-${i}`)) mb.tasks[i].note = document.getElementById(`t-note-${i}`).value.trim(); db.ref('vanphong/members').set(membersData).then(() => { alert("Đã lưu!"); }); }
+        function deleteTask(i) { if(confirm("Xóa nhiệm vụ?")) { membersData[viewingTaskTeacherIndex].tasks.splice(i, 1); db.ref('vanphong/members').set(membersData); } }
+        function saveYearlyEval() { membersData[viewingTaskTeacherIndex].yearlyEval = document.getElementById('td-yearly-eval').value; db.ref('vanphong/members').set(membersData).then(() => { alert("Đã chốt!"); }); }
 
-            let labels = [];
-            let scores = [];
+        function enableEditPoints() { document.querySelectorAll('.point-input').forEach(el => el.disabled = false); document.getElementById('btn-edit-points').style.display = 'none'; document.getElementById('btn-save-points').style.display = 'inline-block'; }
+        function savePoints() { evalPoints.xs = parseFloat(document.getElementById('pt-xs').value)||0; evalPoints.tot = parseFloat(document.getElementById('pt-tot').value)||0; evalPoints.ht = parseFloat(document.getElementById('pt-ht').value)||0; evalPoints.cht = parseFloat(document.getElementById('pt-cht').value)||0; db.ref('vanphong/settings/points').set(evalPoints).then(() => { document.querySelectorAll('.point-input').forEach(el => el.disabled = true); document.getElementById('btn-edit-points').style.display = 'inline-block'; document.getElementById('btn-save-points').style.display = 'none'; alert("Đã cập nhật điểm!"); }); }
+        function renderStats() { const tbody = document.getElementById('stats-table-list'); tbody.innerHTML = ''; document.getElementById('pt-xs').value = evalPoints.xs; document.getElementById('pt-tot').value = evalPoints.tot; document.getElementById('pt-ht').value = evalPoints.ht; document.getElementById('pt-cht').value = evalPoints.cht; let labels = []; let scores = []; membersData.forEach((mb) => { if (currentUser.username !== 'admin' && mb.username === 'admin') return; let xs = 0, tot = 0, ht = 0, cht = 0; if (mb.tasks) mb.tasks.forEach(t => { if (t.status === 'Hoàn thành xuất sắc') xs++; else if (t.status === 'Hoàn thành tốt') tot++; else if (t.status === 'Hoàn thành') ht++; else if (t.status === 'Chưa hoàn thành') cht++; }); let t = xs + tot + ht + cht; let s = (xs * evalPoints.xs) + (tot * evalPoints.tot) + (ht * evalPoints.ht) + (cht * evalPoints.cht); let avg = t > 0 ? parseFloat((s / t).toFixed(2)) : 0; labels.push(mb.name); scores.push(avg); const tr = document.createElement('tr'); tr.innerHTML = `<td><b>${mb.name}</b></td><td style="text-align: center; color: #b38600; font-weight: bold;">${xs}</td><td style="text-align: center; color: #28a745; font-weight: bold;">${tot}</td><td style="text-align: center; color: #007bff; font-weight: bold;">${ht}</td><td style="text-align: center; color: #dc3545; font-weight: bold;">${cht}</td><td style="text-align: center;"><b>${t}</b></td><td style="text-align: center; color: red; font-size: 16px;"><b>${avg}</b></td>`; tbody.appendChild(tr); }); const ctx = document.getElementById('evaluationChart').getContext('2d'); if (myChart) myChart.destroy(); myChart = new Chart(ctx, { type: 'bar', data: { labels: labels, datasets: [{ label: 'Điểm trung bình thi đua', data: scores, backgroundColor: '#17a2b8', borderColor: '#117a8b', borderWidth: 1 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } } }); }
 
-            membersData.forEach((mb) => {
-                if (mb.username === 'admin') return;
-
-                let xs = 0, tot = 0, ht = 0, cht = 0;
-                
-                if (mb.tasks && mb.tasks.length > 0) {
-                    mb.tasks.forEach(t => {
-                        if (t.status === 'Hoàn thành xuất sắc') xs++;
-                        else if (t.status === 'Hoàn thành tốt') tot++;
-                        else if (t.status === 'Hoàn thành') ht++;
-                        else if (t.status === 'Chưa hoàn thành') cht++;
-                    });
-                }
-                
-                let totalTasks = xs + tot + ht + cht;
-                let totalSum = (xs * evalPoints.xs) + (tot * evalPoints.tot) + (ht * evalPoints.ht) + (cht * evalPoints.cht);
-                
-                let averageScore = 0;
-                if (totalTasks > 0) {
-                    averageScore = parseFloat((totalSum / totalTasks).toFixed(2));
-                }
-                
-                labels.push(mb.name);
-                scores.push(averageScore);
-
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td><b>${mb.name}</b></td>
-                    <td style="text-align: center; color: #b38600; font-weight: bold; background-color: #fff9e6;">${xs}</td>
-                    <td style="text-align: center; color: #28a745; font-weight: bold; background-color: #e6f4ea;">${tot}</td>
-                    <td style="text-align: center; color: #007bff; font-weight: bold; background-color: #e6f0ff;">${ht}</td>
-                    <td style="text-align: center; color: #dc3545; font-weight: bold; background-color: #ffe6e6;">${cht}</td>
-                    <td style="text-align: center;"><b>${totalTasks}</b></td>
-                    <td style="text-align: center; color: red; font-size: 16px;"><b>${averageScore}</b></td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            const ctx = document.getElementById('evaluationChart').getContext('2d');
-            if (myChart) {
-                myChart.destroy(); 
-            }
-            
-            myChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Điểm trung bình thi đua',
-                        data: scores,
-                        backgroundColor: '#17a2b8',
-                        borderColor: '#117a8b',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: { beginAtZero: true }
-                    },
-                    plugins: {
-                        legend: { display: false },
-                        title: {
-                            display: true,
-                            text: 'Biểu đồ điểm trung bình của nhân viên'
-                        }
-                    }
-                }
-            });
-        }
-
-        // CHỈNH SỬA BẢN IN
-        function toggleEditPrint() {
-            const printArea = document.getElementById('print-area');
-            const isEditable = printArea.getAttribute('contenteditable') === 'true';
-            
-            if (!isEditable) {
-                printArea.setAttribute('contenteditable', 'true');
-                printArea.style.border = '2px dashed #ffc107';
-                printArea.style.padding = '10px';
-                document.getElementById('btn-edit-print').innerHTML = '💾 Lưu Bản In';
-                document.getElementById('btn-edit-print').className = 'btn-primary';
-                alert('CHẾ ĐỘ SỬA TRỰC TIẾP TRƯỚC KHI IN ĐÃ BẬT.\n- Bạn có thể click trực tiếp vào văn bản để sửa.\n- Sau khi sửa xong, nhấn "Lưu Bản In".');
-            } else {
-                printArea.setAttribute('contenteditable', 'false');
-                printArea.style.border = 'none';
-                printArea.style.padding = '0';
-                document.getElementById('btn-edit-print').innerHTML = '📝 Sửa Bản In';
-                document.getElementById('btn-edit-print').className = 'btn-warning';
-                
-                const mIndex = meetings.findIndex(x => x.id === currentMeetingId);
-                if (mIndex !== -1) {
-                    meetings[mIndex].customHtml = printArea.innerHTML;
-                    db.ref('vanphong/meetings').set(meetings).then(() => {
-                        alert('Đã lưu thành công phiên bản tùy chỉnh!');
-                        document.getElementById('btn-restore-print').style.display = 'inline-block';
-                    });
-                }
-            }
-        }
-
-        function restoreOriginalPrint() {
-            if(confirm("Khôi phục lại nội dung tự động? Tất cả các chỉnh sửa bằng tay trên bản in sẽ bị xóa!")) {
-                const mIndex = meetings.findIndex(x => x.id === currentMeetingId);
-                if (mIndex !== -1) {
-                    meetings[mIndex].customHtml = null;
-                    db.ref('vanphong/meetings').set(meetings).then(() => {
-                        alert('Đã khôi phục thành công bản gốc!');
-                        viewMeeting(currentMeetingId);
-                    });
-                }
-            }
-        }
+        function toggleEditPrint() { const printArea = document.getElementById('print-area'); const isEditable = printArea.getAttribute('contenteditable') === 'true'; if (!isEditable) { printArea.setAttribute('contenteditable', 'true'); printArea.style.border = '2px dashed #ffc107'; printArea.style.padding = '10px'; document.getElementById('btn-edit-print').innerHTML = '💾 Lưu Bản In'; document.getElementById('btn-edit-print').className = 'btn-primary'; alert('CHẾ ĐỘ SỬA TRỰC TIẾP ĐÃ BẬT.\nLưu ý: Bất cứ thay đổi nào trên cả biên bản chung và nhóm sẽ được đóng băng lại khi lưu.'); } else { printArea.setAttribute('contenteditable', 'false'); printArea.style.border = 'none'; printArea.style.padding = '0'; document.getElementById('btn-edit-print').innerHTML = '📝 Sửa Bản In Tự Do'; document.getElementById('btn-edit-print').className = 'btn-warning'; const mIndex = meetings.findIndex(x => x.id === currentMeetingId); if (mIndex !== -1) { meetings[mIndex].customHtml = printArea.innerHTML; db.ref('vanphong/meetings').set(meetings).then(() => { alert('Đã chốt bản in!'); document.getElementById('btn-restore-print').style.display = 'inline-block'; }); } } }
+        function restoreOriginalPrint() { if(confirm("Khôi phục bản gốc? Mọi chỉnh sửa tay sẽ mất!")) { const mIndex = meetings.findIndex(x => x.id === currentMeetingId); if (mIndex !== -1) { meetings[mIndex].customHtml = null; db.ref('vanphong/meetings').set(meetings).then(() => { alert('Đã khôi phục!'); viewMeeting(currentMeetingId); }); } } }
     </script>
 </body>
 </html>
