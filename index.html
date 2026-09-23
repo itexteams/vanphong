@@ -459,6 +459,23 @@
             <textarea id="c-text" rows="3" placeholder="Nhập ý kiến (ấn Enter để phân đoạn)..." style="font-family: 'Segoe UI', sans-serif;"></textarea>
             <button onclick="addComment()" class="btn-primary">Gửi ý kiến</button>
             
+            <!-- PHẦN MỚI: DÀNH CHO ADMIN VÀ NHÓM TRƯỞNG -->
+            <div id="edit-content-conclusion-section" style="display: none; margin-top: 20px; background: #e9ecef; padding: 15px; border-radius: 5px;">
+                <h4 style="margin-top: 0; font-family: 'Segoe UI', sans-serif; color: #0056b3;">Chỉnh sửa Nội dung & Chốt Kết luận:</h4>
+                <div style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
+                    <label style="font-weight: bold; min-width: 150px;">Chọn biên bản:</label>
+                    <select id="c-edit-target" style="margin: 0; padding: 8px; flex: 1;" onchange="loadTargetEditData()">
+                    </select>
+                </div>
+                <label style="font-size: 14px; font-weight:bold;">Nội dung triển khai:</label>
+                <textarea id="c-edit-content" rows="4" placeholder="Nhập nội dung triển khai..." style="font-family: inherit; margin-bottom: 10px;"></textarea>
+
+                <label style="font-size: 14px; font-weight:bold; display: block;">Kết luận:</label>
+                <textarea id="c-conclusion-text" rows="4" placeholder="Nhập nội dung kết luận..." style="font-family: inherit;"></textarea>
+                <button class="btn-warning" onclick="saveEditData()" style="margin-top: 10px;">Lưu Nội dung & Kết luận</button>
+            </div>
+
+            <!-- PHẦN DÀNH RIÊNG CHO ADMIN -->
             <div class="admin-only" style="margin-top: 20px; background: #e9ecef; padding: 15px; border-radius: 5px;">
                 
                 <!-- TRÌNH CHỈNH SỬA BẢNG SAU KHI ĐÃ TẠO -->
@@ -478,23 +495,11 @@
                     </div>
                 </div>
 
-                <h4 style="margin-top: 0; font-family: 'Segoe UI', sans-serif; color: #0056b3;">Tổng hợp & Chốt Kết luận:</h4>
-                <div style="display: flex; gap: 10px; margin-bottom: 5px; align-items: center;">
-                    <label style="font-weight: bold; min-width: 150px;">Kết luận cho cuộc họp:</label>
-                    <select id="c-conclusion-target" style="margin: 0; padding: 8px; flex: 1;" onchange="loadTargetConclusion()">
-                        <option value="main">Cuộc họp chung</option>
-                    </select>
-                </div>
-                <textarea id="c-conclusion-text" rows="4" placeholder="Nhập nội dung kết luận..." style="font-family: inherit;"></textarea>
-                <button class="btn-warning" onclick="saveConclusion()" style="margin-bottom: 15px;">Lưu Kết luận</button>
-                
-                <hr style="border-top: 1px dashed #ccc;">
-                
                 <h4 style="margin-top: 15px; font-family: 'Segoe UI', sans-serif; color: #28a745;">+ Tạo Biên Bản Họp Bộ phận (Gắn kèm)</h4>
                 <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                     <div style="flex: 2; min-width: 200px;"><input type="text" id="sub-title" placeholder="Tên bộ phận (VD: Bộ phận Kế toán, Y tế...)"></div>
                     <div style="flex: 1; min-width: 150px;">
-                        <select id="sub-host" style="margin: 8px 0 15px;"><option value="">-- Chọn Nhóm trưởng --</option></select>
+                        <select id="sub-host" style="margin: 8px 0 15px;"><option value="">-- Chọn Phụ trách --</option></select>
                     </div>
                 </div>
                 <textarea id="sub-content" rows="3" placeholder="Nội dung triển khai của bộ phận..."></textarea>
@@ -923,7 +928,19 @@
                     document.getElementById('print-area').innerHTML = m.customHtml;
                     if (currentUser.role === 'admin') document.getElementById('btn-restore-print').style.display = 'inline-block';
                     document.getElementById('c-deadline-input').value = m.deadline || '';
-                    populateInteractionTargets(m); loadTargetConclusion();
+                    
+                    // Kiểm tra quyền Nhóm trưởng / Phụ trách bộ phận
+                    let canEdit = (currentUser.role === 'admin');
+                    if (m.subMeetings) {
+                        let subArr = Array.isArray(m.subMeetings) ? m.subMeetings : Object.values(m.subMeetings);
+                        subArr.forEach(sub => {
+                            if (sub.host === currentUser.name) canEdit = true;
+                        });
+                    }
+                    document.getElementById('edit-content-conclusion-section').style.display = canEdit ? 'block' : 'none';
+                    
+                    populateInteractionTargets(m); 
+                    if(canEdit) loadTargetEditData();
                     showScreen('detail-screen'); return;
                 }
                 document.getElementById('btn-restore-print').style.display = 'none';
@@ -984,23 +1001,100 @@
                 });
             }
 
-            populateInteractionTargets(m); loadTargetConclusion(); initEditTable(m);
+            // Kiểm tra quyền Nhóm trưởng / Phụ trách bộ phận
+            let canEdit = (currentUser.role === 'admin');
+            if (m.subMeetings) {
+                let subArr = Array.isArray(m.subMeetings) ? m.subMeetings : Object.values(m.subMeetings);
+                subArr.forEach(sub => {
+                    if (sub.host === currentUser.name) canEdit = true;
+                });
+            }
+            document.getElementById('edit-content-conclusion-section').style.display = canEdit ? 'block' : 'none';
+
+            populateInteractionTargets(m); 
+            if(canEdit) loadTargetEditData();
+            initEditTable(m);
+
             document.getElementById('c-deadline-input').value = m.deadline || '';
             document.getElementById('print-header-info').style.display = 'block'; document.getElementById('print-footer-info').style.display = 'block';
             
             if (currentUser.role === 'admin') {
-                const hostSelect = document.getElementById('sub-host'); hostSelect.innerHTML = '<option value="">-- Chọn Nhóm trưởng --</option>';
+                const hostSelect = document.getElementById('sub-host'); hostSelect.innerHTML = '<option value="">-- Chọn Phụ trách --</option>';
                 membersData.forEach(mb => { if(mb.username !== 'admin') hostSelect.innerHTML += `<option value="${mb.name}">${mb.name}</option>`; });
             }
             if(!isRefresh) showScreen('detail-screen');
         }
 
-        function populateInteractionTargets(m) { const t1 = document.getElementById('c-target'); const t2 = document.getElementById('c-conclusion-target'); let val1 = t1.value; let val2 = t2.value; let opts = '<option value="main">Cuộc họp chung</option>'; if(m.subMeetings) { let subArr = Array.isArray(m.subMeetings) ? m.subMeetings : Object.values(m.subMeetings); subArr.forEach((sub, i) => { opts += `<option value="${i}">Biên bản: ${sub.title}</option>`; }); } t1.innerHTML = opts; t2.innerHTML = opts; if([...t1.options].some(o => o.value === val1)) t1.value = val1; if([...t2.options].some(o => o.value === val2)) t2.value = val2; }
-        function loadTargetConclusion() { if(currentUser.role !== 'admin') return; const target = document.getElementById('c-conclusion-target').value; const m = meetings.find(x => x.id === currentMeetingId); if(target === 'main') { document.getElementById('c-conclusion-text').value = m.conclusion || ''; } else { let subArr = Array.isArray(m.subMeetings) ? m.subMeetings : Object.values(m.subMeetings); document.getElementById('c-conclusion-text').value = subArr[target].conclusion || ''; } }
+        function populateInteractionTargets(m) { 
+            // 1. Danh sách cho phần Góp ý (Mọi người đều thấy tất cả biên bản)
+            const t1 = document.getElementById('c-target'); 
+            let val1 = t1.value; 
+            let opts1 = '<option value="main">Cuộc họp chung</option>'; 
+            if(m.subMeetings) { 
+                let subArr = Array.isArray(m.subMeetings) ? m.subMeetings : Object.values(m.subMeetings); 
+                subArr.forEach((sub, i) => { opts1 += `<option value="${i}">Biên bản: ${sub.title}</option>`; }); 
+            } 
+            t1.innerHTML = opts1; 
+            if([...t1.options].some(o => o.value === val1)) t1.value = val1; 
+
+            // 2. Danh sách cho phần Sửa nội dung & Kết luận (Nhóm trưởng chỉ thấy nhóm của mình)
+            const t2 = document.getElementById('c-edit-target'); 
+            if(t2) {
+                let val2 = t2.value; 
+                let opts2 = ''; 
+                if (currentUser.role === 'admin') opts2 += '<option value="main">Cuộc họp chung</option>';
+                if(m.subMeetings) { 
+                    let subArr = Array.isArray(m.subMeetings) ? m.subMeetings : Object.values(m.subMeetings); 
+                    subArr.forEach((sub, i) => { 
+                        // Nếu là admin hoặc chính là nhóm trưởng của nhóm đó thì mới hiển thị tùy chọn
+                        if (currentUser.role === 'admin' || sub.host === currentUser.name) {
+                            opts2 += `<option value="${i}">Biên bản: ${sub.title}</option>`; 
+                        }
+                    }); 
+                } 
+                t2.innerHTML = opts2; 
+                if([...t2.options].some(o => o.value === val2)) t2.value = val2; 
+                else if (t2.options.length > 0) t2.value = t2.options[0].value;
+            }
+        }
+        
+        function loadTargetEditData() { 
+            const target = document.getElementById('c-edit-target').value; 
+            if(!target) return;
+            const m = meetings.find(x => x.id === currentMeetingId); 
+            if(target === 'main') { 
+                document.getElementById('c-edit-content').value = m.content || ''; 
+                document.getElementById('c-conclusion-text').value = m.conclusion || ''; 
+            } else { 
+                let subArr = Array.isArray(m.subMeetings) ? m.subMeetings : Object.values(m.subMeetings); 
+                document.getElementById('c-edit-content').value = subArr[target].content || ''; 
+                document.getElementById('c-conclusion-text').value = subArr[target].conclusion || ''; 
+            } 
+        }
+        
+        function saveEditData() { 
+            const content = document.getElementById('c-edit-content').value.trim();
+            const conclusion = document.getElementById('c-conclusion-text').value.trim(); 
+            const target = document.getElementById('c-edit-target').value; 
+            const mIndex = meetings.findIndex(x => x.id === currentMeetingId); 
+            
+            if(target === 'main') { 
+                meetings[mIndex].content = content; 
+                meetings[mIndex].conclusion = conclusion; 
+            } else { 
+                let subArr = Array.isArray(meetings[mIndex].subMeetings) ? meetings[mIndex].subMeetings : Object.values(meetings[mIndex].subMeetings); 
+                subArr[target].content = content; 
+                subArr[target].conclusion = conclusion; 
+                meetings[mIndex].subMeetings = subArr; 
+            } 
+            db.ref('vanphong/meetings').set(meetings).then(() => { 
+                alert("Đã lưu Nội dung & Kết luận thành công!"); 
+            }); 
+        }
         
         function createSubMeeting() {
             const title = document.getElementById('sub-title').value.trim(); const host = document.getElementById('sub-host').value; const content = document.getElementById('sub-content').value.trim();
-            if(!title || !host || !content) return alert("Vui lòng nhập Tên bộ phận, chọn Nhóm trưởng và nhập nội dung!");
+            if(!title || !host || !content) return alert("Vui lòng nhập Tên bộ phận, chọn Phụ trách và nhập nội dung!");
             const mIndex = meetings.findIndex(x => x.id === currentMeetingId);
             if(!meetings[mIndex].subMeetings) meetings[mIndex].subMeetings = [];
             let subArr = Array.isArray(meetings[mIndex].subMeetings) ? meetings[mIndex].subMeetings : Object.values(meetings[mIndex].subMeetings);
@@ -1009,14 +1103,6 @@
         }
 
         function updateDeadline() { const newDeadline = document.getElementById('c-deadline-input').value; const mIndex = meetings.findIndex(x => x.id === currentMeetingId); meetings[mIndex].deadline = newDeadline; db.ref('vanphong/meetings').set(meetings).then(() => { alert("Đã cập nhật hạn!"); }); }
-        
-        function saveConclusion() {
-            const text = document.getElementById('c-conclusion-text').value.trim(); const target = document.getElementById('c-conclusion-target').value;
-            const mIndex = meetings.findIndex(x => x.id === currentMeetingId);
-            if(target === 'main') { meetings[mIndex].conclusion = text; } 
-            else { let subArr = Array.isArray(meetings[mIndex].subMeetings) ? meetings[mIndex].subMeetings : Object.values(meetings[mIndex].subMeetings); subArr[target].conclusion = text; meetings[mIndex].subMeetings = subArr; }
-            db.ref('vanphong/meetings').set(meetings).then(() => { alert("Đã lưu Kết luận thành công!"); });
-        }
 
         function addComment() {
             const text = document.getElementById('c-text').value.trim(); if (!text) return alert('Vui lòng nhập ý kiến!');
@@ -1032,6 +1118,7 @@
             db.ref('vanphong/meetings').set(meetings).then(() => { document.getElementById('c-text').value = ''; });
         }
 
+        // CÁC HÀM CÒN LẠI GIỮ NGUYÊN
         function renderPlans() { const tbody = document.getElementById('plan-list'); tbody.innerHTML = ''; if (plans.length === 0) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#666;">Chưa có kế hoạch</td></tr>'; return; } plans.forEach((pl, index) => { const tr = document.createElement('tr'); let adminCols = (currentUser.role === 'admin') ? `<td class="admin-only-cell" style="text-align: center;"><button class="btn-warning" style="width:100%; margin-bottom:5px;" onclick="editPlan(${index})">Sửa</button><button class="btn-danger" style="width:100%;" onclick="deletePlan(${index})">Xóa</button></td>` : ''; tr.innerHTML = `<td style="text-align: center;"><b>${index + 1}</b></td><td style="text-align: center;"><b>${pl.time}</b></td><td><div class="no-indent-text">${formatParagraphs(pl.content)}</div></td><td><div class="no-indent-text">${formatParagraphs(pl.note || '')}</div></td>${adminCols}`; tbody.appendChild(tr); }); }
         function savePlan() { const time = document.getElementById('pl-time').value.trim(); const content = document.getElementById('pl-content').value.trim(); const note = document.getElementById('pl-note').value.trim(); if (!time || !content) { alert('Vui lòng nhập Thời gian và Nội dung!'); return; } if (editingPlanIndex >= 0) plans[editingPlanIndex] = { time, content, note }; else plans.push({ time, content, note }); db.ref('vanphong/plans').set(plans).then(() => { cancelEditPlan(); alert(editingPlanIndex >= 0 ? "Đã cập nhật!" : "Đã thêm mới!"); }); }
         function editPlan(index) { editingPlanIndex = index; const pl = plans[index]; document.getElementById('pl-time').value = pl.time || ''; document.getElementById('pl-content').value = pl.content || ''; document.getElementById('pl-note').value = pl.note || ''; document.getElementById('form-plan-title').innerText = "Sửa kế hoạch (STT " + (index + 1) + ")"; document.getElementById('btn-save-plan').innerText = "Cập nhật"; document.getElementById('btn-save-plan').className = "btn-warning"; document.getElementById('btn-cancel-edit-plan').style.display = "inline-block"; document.getElementById('admin-plan-form').scrollIntoView({ behavior: 'smooth' }); }
