@@ -960,8 +960,6 @@
                 const tableHtml = generateDynamicTableHtml(m.dynamicTable, m.tableConfig);
                 if (contentHtml.includes('[BANG]')) {
                     contentHtml = contentHtml.replace('[BANG]', tableHtml);
-                } else {
-                    contentHtml += tableHtml;
                 }
             } else {
                 contentHtml = contentHtml.replace('[BANG]', ''); 
