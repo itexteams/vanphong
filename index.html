@@ -95,6 +95,32 @@
         }
         
         .point-input { width: 60px; padding: 5px; margin: 0; text-align: center; font-weight: bold; }
+
+        /* ======== CSS MỚI CHO THANH CÔNG CỤ SOẠN THẢO ======== */
+        .editor-toolbar {
+            display: flex;
+            gap: 5px;
+            background: #e9ecef;
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-bottom: none;
+            border-radius: 4px 4px 0 0;
+            margin-top: 8px;
+        }
+        .editor-toolbar button {
+            background: white;
+            color: #333;
+            border: 1px solid #ccc;
+            padding: 4px 10px;
+            font-size: 14px;
+            border-radius: 3px;
+        }
+        .editor-toolbar button:hover { background: #d6d8db; }
+        .editor-textarea {
+            margin-top: 0 !important;
+            border-top-left-radius: 0 !important;
+            border-top-right-radius: 0 !important;
+        }
     </style>
 </head>
 <body>
@@ -349,8 +375,15 @@
         <input type="datetime-local" id="m-time">
         <label>Hạn chót nhận xét (Bỏ trống nếu không giới hạn):</label>
         <input type="datetime-local" id="m-deadline">
+        
+        <!-- THANH CÔNG CỤ SOẠN THẢO -->
         <label>Nội dung triển khai:</label>
-        <textarea id="m-content" rows="6" placeholder="Nhập nội dung... (Có thể ấn Enter xuống dòng, hệ thống tự động căn lề chuẩn 1.27cm)"></textarea>
+        <div class="editor-toolbar">
+            <button type="button" onclick="formatText('bold', 'm-content')" title="In đậm (Bôi đen chữ rồi bấm)"><b>B</b></button>
+            <button type="button" onclick="formatText('italic', 'm-content')" title="In nghiêng"><i>I</i></button>
+            <button type="button" onclick="formatText('underline', 'm-content')" title="Gạch chân"><u>U</u></button>
+        </div>
+        <textarea id="m-content" class="editor-textarea" rows="6" placeholder="Nhập nội dung... (Có thể ấn Enter xuống dòng, hệ thống tự động căn lề chuẩn 1.27cm)"></textarea>
         
         <!-- TRÌNH TẠO BẢNG ĐỘNG -->
         <div style="background: #e9ecef; padding: 15px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #ccc;">
@@ -383,7 +416,7 @@
         <button class="no-print btn-success" onclick="window.print()" style="margin-bottom: 15px; float: right;">Xuất Biên Bản (In/PDF)</button>
         
         <div class="no-print admin-only" style="float: right; margin-right: 10px;">
-            <button class="btn-warning" id="btn-edit-print" onclick="toggleEditPrint()" style="margin-bottom: 15px; margin-right: 5px;">📝 Sửa Bản In</button>
+            <button class="btn-warning" id="btn-edit-print" onclick="toggleEditPrint()" style="margin-bottom: 15px; margin-right: 5px;">📝 Sửa Bản In Tự Do</button>
             <button class="btn-danger" id="btn-restore-print" onclick="restoreOriginalPrint()" style="display:none; margin-bottom: 15px;">🔄 Khôi phục gốc</button>
         </div>
         <div style="clear: both;"></div>
@@ -456,7 +489,13 @@
                 <label style="font-weight: bold; min-width: 150px;">Góp ý cho cuộc họp:</label>
                 <select id="c-target" style="margin: 0; padding: 8px; flex: 1;"><option value="main">Cuộc họp chung</option></select>
             </div>
-            <textarea id="c-text" rows="3" placeholder="Nhập ý kiến (ấn Enter để phân đoạn)..." style="font-family: 'Segoe UI', sans-serif;"></textarea>
+            
+            <div class="editor-toolbar">
+                <button type="button" onclick="formatText('bold', 'c-text')"><b>B</b></button>
+                <button type="button" onclick="formatText('italic', 'c-text')"><i>I</i></button>
+                <button type="button" onclick="formatText('underline', 'c-text')"><u>U</u></button>
+            </div>
+            <textarea id="c-text" class="editor-textarea" rows="3" placeholder="Nhập ý kiến (ấn Enter để phân đoạn)..." style="font-family: 'Segoe UI', sans-serif;"></textarea>
             <button onclick="addComment()" class="btn-primary">Gửi ý kiến</button>
             
             <!-- PHẦN MỚI: DÀNH CHO ADMIN VÀ NHÓM TRƯỞNG -->
@@ -467,11 +506,22 @@
                     <select id="c-edit-target" style="margin: 0; padding: 8px; flex: 1;" onchange="loadTargetEditData()">
                     </select>
                 </div>
+                
                 <label style="font-size: 14px; font-weight:bold;">Nội dung triển khai:</label>
-                <textarea id="c-edit-content" rows="4" placeholder="Nhập nội dung triển khai..." style="font-family: inherit; margin-bottom: 10px;"></textarea>
+                <div class="editor-toolbar">
+                    <button type="button" onclick="formatText('bold', 'c-edit-content')"><b>B</b></button>
+                    <button type="button" onclick="formatText('italic', 'c-edit-content')"><i>I</i></button>
+                    <button type="button" onclick="formatText('underline', 'c-edit-content')"><u>U</u></button>
+                </div>
+                <textarea id="c-edit-content" class="editor-textarea" rows="4" placeholder="Nhập nội dung triển khai..." style="font-family: inherit; margin-bottom: 10px;"></textarea>
 
                 <label style="font-size: 14px; font-weight:bold; display: block;">Kết luận:</label>
-                <textarea id="c-conclusion-text" rows="4" placeholder="Nhập nội dung kết luận..." style="font-family: inherit;"></textarea>
+                <div class="editor-toolbar">
+                    <button type="button" onclick="formatText('bold', 'c-conclusion-text')"><b>B</b></button>
+                    <button type="button" onclick="formatText('italic', 'c-conclusion-text')"><i>I</i></button>
+                    <button type="button" onclick="formatText('underline', 'c-conclusion-text')"><u>U</u></button>
+                </div>
+                <textarea id="c-conclusion-text" class="editor-textarea" rows="4" placeholder="Nhập nội dung kết luận..." style="font-family: inherit;"></textarea>
                 <button class="btn-warning" onclick="saveEditData()" style="margin-top: 10px;">Lưu Nội dung & Kết luận</button>
             </div>
 
@@ -502,7 +552,13 @@
                         <select id="sub-host" style="margin: 8px 0 15px;"><option value="">-- Chọn Phụ trách --</option></select>
                     </div>
                 </div>
-                <textarea id="sub-content" rows="3" placeholder="Nội dung triển khai của bộ phận..."></textarea>
+                
+                <div class="editor-toolbar">
+                    <button type="button" onclick="formatText('bold', 'sub-content')"><b>B</b></button>
+                    <button type="button" onclick="formatText('italic', 'sub-content')"><i>I</i></button>
+                    <button type="button" onclick="formatText('underline', 'sub-content')"><u>U</u></button>
+                </div>
+                <textarea id="sub-content" class="editor-textarea" rows="3" placeholder="Nội dung triển khai của bộ phận..."></textarea>
                 <button class="btn-success" onclick="createSubMeeting()">Tạo cuộc họp bộ phận</button>
 
                 <hr style="border-top: 1px dashed #ccc; margin-top: 20px;">
@@ -522,6 +578,28 @@
         document.addEventListener("DOMContentLoaded", () => {
             printAreaTemplate = document.getElementById('print-area').innerHTML;
         });
+
+        // ================= HÀM MỚI: XỬ LÝ CHÈN ĐỊNH DẠNG TEXT =================
+        function formatText(command, targetId) {
+            const textarea = document.getElementById(targetId);
+            if (!textarea) return;
+
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const selectedText = textarea.value.substring(start, end);
+            let replacement = "";
+
+            if (command === 'bold') replacement = `<b>${selectedText}</b>`;
+            if (command === 'italic') replacement = `<i>${selectedText}</i>`;
+            if (command === 'underline') replacement = `<u>${selectedText}</u>`;
+
+            textarea.value = textarea.value.substring(0, start) + replacement + textarea.value.substring(end);
+
+            // Đưa con trỏ chuột quay lại đúng vị trí vừa bôi đen
+            textarea.focus();
+            textarea.setSelectionRange(start, start + replacement.length);
+        }
+        // ====================================================================
 
         // 1. CẤU HÌNH FIREBASE
         const firebaseConfig = {
